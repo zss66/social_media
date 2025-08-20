@@ -1,0 +1,353 @@
+# Electron Builder 配置文件
+appId: com.example.multi-social-platform
+productName: Multi Social Platform
+copyright: Copyright © 2024 Multi Social Platform
+
+# 应用信息
+electronVersion: 25.9.0
+electronDist: node_modules/electron/dist
+electronDownload:
+  cache: .electron-cache
+  mirror: https://npm.taobao.org/mirrors/electron/
+
+# 构建目录配置
+directories:
+  output: dist_electron
+  app: dist
+  
+# 文件配置
+files:
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/*.d.ts"
+  - "!**/node_modules/.bin"
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!.editorconfig"
+  - "!**/._*"
+  - "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}"
+  - "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}"
+  - "!**/{appveyor.yml,.travis.yml,circle.yml}"
+  - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+  - "dist/**/*"
+  - "public/electron.js"
+  - "public/preload.js"
+  - "!public/index.html"
+
+# 额外资源
+extraResources:
+  - from: "resources/"
+    to: "resources/"
+    filter: ["**/*"]
+
+# 额外文件
+extraFiles:
+  - from: "LICENSE"
+    to: "LICENSE.txt"
+  - from: "README.md"
+    to: "README.txt"
+
+# 发布配置
+publish:
+  - provider: github
+    owner: your-username
+    repo: multi-social-platform
+    private: false
+    releaseType: release
+  - provider: generic
+    url: https://your-domain.com/releases/
+    channel: latest
+
+# 自动更新配置
+autoUpdater:
+  checkForUpdatesAndNotify: true
+  autoDownload: true
+  autoInstallOnAppQuit: true
+
+# macOS 配置
+mac:
+  category: public.app-category.social-networking
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+    - target: mas
+      arch:
+        - x64
+        - arm64
+  icon: build/icons/icon.icns
+  type: distribution
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  provisioningProfile: build/app.provisionprofile
+  notarize:
+    teamId: YOUR_TEAM_ID
+  bundleVersion: "1.0.0"
+  bundleShortVersion: "1.0.0"
+  helperBundleId: com.example.multi-social-platform.helper
+  darkModeSupport: true
+
+# macOS DMG 配置
+dmg:
+  title: "${productName} Installer"
+  icon: build/icons/volume.icns
+  iconSize: 80
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 130
+      y: 220
+      type: file
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+  format: UDZO
+  backgroundColor: "#ffffff"
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+
+# macOS App Store 配置
+mas:
+  category: public.app-category.social-networking
+  entitlements: build/entitlements.mas.plist
+  entitlementsInherit: build/entitlements.mas.inherit.plist
+  provisioningProfile: build/mas.provisionprofile
+  bundleVersion: "1.0.0"
+  icon: build/icons/icon.icns
+
+# Windows 配置
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - ia32
+    - target: portable
+      arch:
+        - x64
+        - ia32
+    - target: zip
+      arch:
+        - x64
+        - ia32
+    - target: msi
+      arch:
+        - x64
+  icon: build/icons/icon.ico
+  publisherName: "Your Company Name"
+  requestedExecutionLevel: asInvoker
+  certificateFile: build/certificates/code-signing.p12
+  certificatePassword: "${env.CSC_KEY_PASSWORD}"
+  timeStampServer: http://timestamp.digicert.com
+  rfc3161TimeStampServer: http://timestamp.digicert.com
+  verifyUpdateCodeSignature: true
+
+# NSIS 安装程序配置
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icons/installer.ico
+  uninstallerIcon: build/icons/uninstaller.ico
+  installerHeaderIcon: build/icons/installer-header.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "${productName}"
+  include: build/installer.nsh
+  script: build/installer.nsi
+  license: LICENSE
+  artifactName: "${productName}-Setup-${version}-${arch}.${ext}"
+  deleteAppDataOnUninstall: false
+  menuCategory: "Social Networking"
+  guid: "12345678-1234-1234-1234-123456789012"
+  runAfterFinish: true
+  installerLanguages:
+    - en_US
+    - zh_CN
+    - ja_JP
+    - ko_KR
+
+# MSI 安装程序配置
+msi:
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+  warningsAsErrors: false
+  upgradeCode: "12345678-1234-1234-1234-123456789012"
+
+# Linux 配置
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+        - arm64
+    - target: deb
+      arch:
+        - x64
+        - arm64
+    - target: rpm
+      arch:
+        - x64
+        - arm64
+    - target: tar.gz
+      arch:
+        - x64
+        - arm64
+    - target: snap
+      arch:
+        - x64
+  icon: build/icons/
+  category: Network
+  desktop:
+    Name: Multi Social Platform
+    Comment: 多平台社交管理器
+    GenericName: Social Platform Manager
+    Keywords: social;chat;messaging;platform;manager
+    MimeType: x-scheme-handler/multi-social-platform
+    StartupWMClass: multi-social-platform
+  maintainer: your-email@example.com
+  vendor: Your Company Name
+  synopsis: 多平台社交管理器
+  description: |
+    Multi Social Platform 是一个基于 Electron 开发的多平台社交软件管理器。
+    它允许您同时运行多个社交平台的实例，每个实例都有独立的代理设置、
+    浏览器指纹伪装，并内置翻译和自动回复功能。
+
+# AppImage 配置
+appImage:
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+  systemIntegration: ask
+
+# Debian 包配置
+deb:
+  priority: optional
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libdrm2
+    - libxcomposite1
+    - libxdamage1
+    - libxrandr2
+    - libgbm1
+    - libxkbcommon0
+    - libasound2
+  packageCategory: net
+  afterInstall: build/scripts/deb-after-install.sh
+  afterRemove: build/scripts/deb-after-remove.sh
+
+# RPM 包配置
+rpm:
+  depends:
+    - gtk3
+    - libnotify
+    - nss
+    - libXScrnSaver
+    - libXtst
+    - xdg-utils
+    - at-spi2-atk
+    - libdrm
+    - libXcomposite
+    - libXdamage
+    - libXrandr
+    - mesa-libgbm
+    - libxkbcommon
+    - alsa-lib
+  packageCategory: Networking/Instant messaging
+  fpm:
+    - "--after-install=build/scripts/rpm-after-install.sh"
+    - "--after-remove=build/scripts/rpm-after-remove.sh"
+
+# Snap 配置
+snap:
+  grade: stable
+  confinement: strict
+  plugs:
+    - default
+    - home
+    - network
+    - network-bind
+    - browser-support
+    - desktop
+    - desktop-legacy
+    - unity7
+    - wayland
+    - x11
+    - opengl
+    - audio-playback
+    - audio-record
+    - camera
+    - removable-media
+  slots:
+    - mpris
+  environment:
+    DISABLE_WAYLAND: 1
+  summary: 多平台社交管理器
+  description: |
+    Multi Social Platform 是一个基于 Electron 开发的多平台社交软件管理器。
+    它允许您同时运行多个社交平台的实例，每个实例都有独立的代理设置、
+    浏览器指纹伪装，并内置翻译和自动回复功能。
+
+# 压缩配置
+compression: maximum
+
+# 安全配置
+forceCodeSigning: false
+buildDependenciesFromSource: false
+
+# 元数据
+metadata:
+  repository:
+    type: git
+    url: https://github.com/your-username/multi-social-platform.git
+  bugs:
+    url: https://github.com/your-username/multi-social-platform/issues
+  homepage: https://your-website.com
+  author:
+    name: Your Name
+    email: your-email@example.com
+  keywords:
+    - social
+    - chat
+    - messaging
+    - platform
+    - manager
+    - electron
+    - vue
+
+# 构建钩子
+beforeBuild: build/scripts/before-build.js
+afterSign: build/scripts/after-sign.js
+afterPack: build/scripts/after-pack.js
+beforePack: build/scripts/before-pack.js
+
+# 忽略文件
+ignore:
+  - "src/"
+  - "public/"
+  - ".gitignore"
+  - ".eslintrc.js"
+  - "vue.config.js"
+  - "babel.config.js"
+  - "*.md"
+  - ".env*"
+  - "build/scripts/"
+  - "build/certificates/"
+  - "tests/"
+  - "docs/"
+
+# Node.js 版本要求
+nodeGypRebuild: false
+npmRebuild: true
+buildVersion: "1.0.0"

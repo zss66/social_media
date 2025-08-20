@@ -1,0 +1,55 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+.Python
+build/
+develop-eggs/
+dist/
+dist_electron/
+downloads/
+pip-wheel-metadata/
+node_modules/
+wheels/
+*.manifest
+*.spec
+*.log
+
+# ---- Virtual Environment ----
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+
+# ---- Jupyter Notebook ----
+.ipynb_checkpoints
+
+# ---- VSCode ----
+.vscode/
+.history/
+*.code-workspace
+
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ---- System ----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ---- Logs & Temp ----
+*.log
+*.tmp
+*.swp
+*.swo
+
+# ---- Other ----
+.idea/

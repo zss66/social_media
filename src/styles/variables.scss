@@ -1,0 +1,414 @@
+// 颜色系统
+// ========================================
+
+// 主色调
+$primary-color: #409eff;
+$primary-light-1: #53a8ff;
+$primary-light-2: #66b1ff;
+$primary-light-3: #79bbff;
+$primary-light-4: #8cc5ff;
+$primary-light-5: #a0cfff;
+$primary-light-6: #b3d8ff;
+$primary-light-7: #c6e2ff;
+$primary-light-8: #d9ecff;
+$primary-light-9: #ecf5ff;
+
+$primary-dark-1: #3a8ee6;
+$primary-dark-2: #337ecc;
+
+// 功能色
+$success-color: #67c23a;
+$success-light: #85ce61;
+$success-lighter: #b3e19d;
+$success-extra-light: #f0f9eb;
+
+$warning-color: #e6a23c;
+$warning-light: #ebb563;
+$warning-lighter: #f5dab1;
+$warning-extra-light: #fdf6ec;
+
+$danger-color: #f56c6c;
+$danger-light: #f78989;
+$danger-lighter: #fab6b6;
+$danger-extra-light: #fef0f0;
+
+$error-color: #f56c6c;
+$info-color: #909399;
+
+// 中性色
+$text-color-primary: #303133;
+$text-color-regular: #606266;
+$text-color-secondary: #909399;
+$text-color-placeholder: #c0c4cc;
+$text-color-disabled: #c0c4cc;
+
+$border-color-base: #dcdfe6;
+$border-color-light: #e4e7ed;
+$border-color-lighter: #ebeef5;
+$border-color-extra-light: #f2f6fc;
+
+$fill-color-darker: #e6e8eb;
+$fill-color-dark: #ebedf0;
+$fill-color: #f0f2f5;
+$fill-color-light: #f5f7fa;
+$fill-color-lighter: #fafafa;
+$fill-color-extra-light: #fafcff;
+$fill-color-blank: #ffffff;
+
+// 背景色
+$bg-color: #ffffff;
+$bg-color-page: #f2f3f5;
+$bg-color-overlay: rgba(255, 255, 255, 0.8);
+
+// 暗色主题
+// ========================================
+
+$dark-bg-color: #141414;
+$dark-bg-color-light: #1d1d1d;
+$dark-bg-color-soft: #242424;
+$dark-bg-color-mute: #2c2c2c;
+
+$dark-border-color: #414243;
+$dark-border-color-light: #4c4d4f;
+$dark-border-color-lighter: #595b5d;
+
+$dark-text-color-1: #eeeeee;
+$dark-text-color-2: #c9c9c9;
+$dark-text-color-3: #a3a3a3;
+$dark-text-color-4: #8d8d8d;
+$dark-text-color-5: #767676;
+
+// 字体系统
+// ========================================
+
+// 字体族
+$font-family-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+$font-family-mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+
+// 字体大小
+$font-size-extra-large: 20px;
+$font-size-large: 18px;
+$font-size-medium: 16px;
+$font-size-base: 14px;
+$font-size-small: 13px;
+$font-size-extra-small: 12px;
+
+// 字体粗细
+$font-weight-light: 300;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// 行高
+$line-height-extra-small: 1.2;
+$line-height-small: 1.4;
+$line-height-base: 1.5;
+$line-height-large: 1.6;
+$line-height-extra-large: 1.8;
+
+// 间距系统
+// ========================================
+
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 20px;
+$spacing-2xl: 24px;
+$spacing-3xl: 32px;
+$spacing-4xl: 40px;
+$spacing-5xl: 48px;
+$spacing-6xl: 64px;
+
+// 边框半径
+// ========================================
+
+$border-radius-none: 0;
+$border-radius-small: 2px;
+$border-radius-base: 4px;
+$border-radius-medium: 6px;
+$border-radius-large: 8px;
+$border-radius-extra-large: 12px;
+$border-radius-round: 20px;
+$border-radius-circle: 50%;
+
+// 阴影
+// ========================================
+
+$box-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+$box-shadow-base: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+$box-shadow-dark: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.12);
+
+$box-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+$box-shadow-2: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+$box-shadow-3: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+$box-shadow-4: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+$box-shadow-5: 0 19px 38px rgba(0, 0, 0, 0.30), 0 15px 12px rgba(0, 0, 0, 0.22);
+
+// 暗色主题阴影
+$dark-box-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 6px rgba(0, 0, 0, 0.2);
+$dark-box-shadow-base: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 6px rgba(0, 0, 0, 0.2);
+$dark-box-shadow-dark: 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 6px rgba(0, 0, 0, 0.4);
+
+// 层级系统
+// ========================================
+
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+$z-index-notification: 1080;
+$z-index-top: 9999;
+
+// 过渡动画
+// ========================================
+
+$transition-duration-fast: 0.15s;
+$transition-duration-base: 0.3s;
+$transition-duration-slow: 0.5s;
+
+$transition-function-ease-in-out-circ: cubic-bezier(0.78, 0.14, 0.15, 0.86);
+$transition-function-ease-out: ease-out;
+$transition-function-ease-in: ease-in;
+$transition-function-ease: ease;
+
+$transition-all: all $transition-duration-base $transition-function-ease-in-out-circ;
+$transition-fade: opacity $transition-duration-base $transition-function-ease-in-out-circ;
+$transition-slide: transform $transition-duration-base $transition-function-ease-in-out-circ;
+$transition-color: color $transition-duration-fast ease-in-out, 
+                   background-color $transition-duration-fast ease-in-out, 
+                   border-color $transition-duration-fast ease-in-out;
+
+// 布局相关
+// ========================================
+
+// 容器宽度
+$container-sm: 540px;
+$container-md: 720px;
+$container-lg: 960px;
+$container-xl: 1140px;
+$container-2xl: 1320px;
+
+// 侧边栏宽度
+$sidebar-width: 240px;
+$sidebar-width-collapsed: 64px;
+
+// 头部高度
+$header-height: 60px;
+$header-height-small: 48px;
+
+// 底部高度
+$footer-height: 60px;
+
+// 响应式断点
+// ========================================
+
+$breakpoint-xs: 0;
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+$breakpoint-2xl: 1400px;
+
+// 组件特定变量
+// ========================================
+
+// 按钮
+$button-height-large: 40px;
+$button-height-default: 32px;
+$button-height-small: 28px;
+$button-height-mini: 24px;
+
+$button-padding-horizontal-large: 20px;
+$button-padding-horizontal-default: 16px;
+$button-padding-horizontal-small: 12px;
+$button-padding-horizontal-mini: 8px;
+
+// 输入框
+$input-height-large: 40px;
+$input-height-default: 32px;
+$input-height-small: 28px;
+$input-height-mini: 24px;
+
+// 表格
+$table-border-color: $border-color-lighter;
+$table-text-color: $text-color-regular;
+$table-header-text-color: $text-color-secondary;
+$table-row-hover-bg-color: $fill-color-light;
+$table-current-row-bg-color: #ecf5ff;
+$table-header-bg-color: #fafafa;
+$table-fixed-box-shadow: 0 0 10px rgba(0, 0, 0, 0.12);
+
+// 卡片
+$card-border-color: $border-color-light;
+$card-border-radius: $border-radius-base;
+$card-padding: 20px;
+
+// 对话框
+$dialog-border-radius: $border-radius-large;
+$dialog-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+
+// 通知
+$notification-border-radius: $border-radius-medium;
+$notification-box-shadow: $box-shadow-light;
+
+// 菜单
+$menu-item-height: 56px;
+$menu-item-font-size: $font-size-base;
+$menu-group-title-padding: 7px 0 7px 20px;
+$menu-group-title-font-size: $font-size-small;
+
+// 工具提示
+$tooltip-max-width: 300px;
+$tooltip-border-radius: $border-radius-small;
+$tooltip-padding: 10px;
+
+// 标签
+$tag-border-radius: $border-radius-small;
+$tag-padding-horizontal: 10px;
+$tag-height: 24px;
+
+// 步骤条
+$steps-simple-border-radius: 4px;
+$steps-border-radius: 6px;
+
+// 滑块
+$slider-border-radius: 3px;
+$slider-height: 6px;
+$slider-button-size: 16px;
+$slider-button-wrapper-size: 36px;
+$slider-stop-wrapper-size: 36px;
+$slider-runway-bg-color: $border-color-light;
+$slider-main-bg-color: $primary-color;
+$slider-stop-bg-color: $bg-color;
+$slider-disabled-color: $text-color-placeholder;
+
+// 开关
+$switch-height: 20px;
+$switch-width: 40px;
+
+// 日期选择器
+$datepicker-border-color: $border-color-base;
+$datepicker-inner-border-color: #e4e4e4;
+$datepicker-inrange-bg-color: $primary-light-9;
+$datepicker-inrange-hover-color: $primary-light-8;
+$datepicker-active-color: $primary-color;
+
+// 特殊效果
+// ========================================
+
+// 模糊效果
+$backdrop-filter-blur: blur(10px);
+$backdrop-filter-blur-light: blur(5px);
+
+// 渐变
+$gradient-primary: linear-gradient(45deg, $primary-color 0%, lighten($primary-color, 10%) 100%);
+$gradient-success: linear-gradient(45deg, $success-color 0%, lighten($success-color, 10%) 100%);
+$gradient-warning: linear-gradient(45deg, $warning-color 0%, lighten($warning-color, 10%) 100%);
+$gradient-danger: linear-gradient(45deg, $danger-color 0%, lighten($danger-color, 10%) 100%);
+
+// 品牌色
+// ========================================
+
+$brand-primary: #409eff;
+$brand-secondary: #909399;
+$brand-dark: #303133;
+$brand-light: #f5f7fa;
+
+// 社交平台色彩
+$whatsapp-color: #25d366;
+$telegram-color: #0088cc;
+$wechat-color: #07c160;
+$line-color: #00b900;
+$discord-color: #5865f2;
+$slack-color: #4a154b;
+$teams-color: #6264a7;
+$skype-color: #00aff0;
+$facebook-color: #1877f2;
+$instagram-color: #e4405f;
+
+// 状态色彩映射
+$status-colors: (
+  'primary': $primary-color,
+  'success': $success-color,
+  'warning': $warning-color,
+  'danger': $danger-color,
+  'info': $info-color
+);
+
+// 平台色彩映射
+$platform-colors: (
+  'whatsapp': $whatsapp-color,
+  'telegram': $telegram-color,
+  'wechat': $wechat-color,
+  'line': $line-color,
+  'discord': $discord-color,
+  'slack': $slack-color,
+  'teams': $teams-color,
+  'skype': $skype-color,
+  'facebook': $facebook-color,
+  'instagram': $instagram-color
+);
+
+// CSS自定义属性（CSS变量）
+// ========================================
+
+:root {
+  // 颜色
+  --color-primary: #{$primary-color};
+  --color-success: #{$success-color};
+  --color-warning: #{$warning-color};
+  --color-danger: #{$danger-color};
+  --color-info: #{$info-color};
+  
+  // 文本
+  --text-color-primary: #{$text-color-primary};
+  --text-color-regular: #{$text-color-regular};
+  --text-color-secondary: #{$text-color-secondary};
+  
+  // 边框
+  --border-color-base: #{$border-color-base};
+  --border-color-light: #{$border-color-light};
+  --border-color-lighter: #{$border-color-lighter};
+  
+  // 背景
+  --bg-color: #{$bg-color};
+  --bg-color-page: #{$bg-color-page};
+  
+  // 间距
+  --spacing-xs: #{$spacing-xs};
+  --spacing-sm: #{$spacing-sm};
+  --spacing-md: #{$spacing-md};
+  --spacing-lg: #{$spacing-lg};
+  --spacing-xl: #{$spacing-xl};
+  
+  // 圆角
+  --border-radius-base: #{$border-radius-base};
+  --border-radius-large: #{$border-radius-large};
+  
+  // 阴影
+  --box-shadow-base: #{$box-shadow-base};
+  --box-shadow-light: #{$box-shadow-light};
+  
+  // 过渡
+  --transition-all: #{$transition-all};
+  --transition-duration-base: #{$transition-duration-base};
+}
+
+// 暗色主题CSS变量
+[data-theme="dark"] {
+  --bg-color: #{$dark-bg-color};
+  --bg-color-page: #{$dark-bg-color-light};
+  --text-color-primary: #{$dark-text-color-1};
+  --text-color-regular: #{$dark-text-color-2};
+  --text-color-secondary: #{$dark-text-color-3};
+  --border-color-base: #{$dark-border-color};
+  --border-color-light: #{$dark-border-color-light};
+  --border-color-lighter: #{$dark-border-color-lighter};
+  --box-shadow-base: #{$dark-box-shadow-base};
+  --box-shadow-light: #{$dark-box-shadow-light};
+}

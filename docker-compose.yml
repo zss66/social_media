@@ -1,0 +1,270 @@
+version: '3.8'
+
+services:
+  # 主应用服务
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: multi-social-platform-app
+    ports:
+      - "8080:8080"
+      - "9229:9229"  # 调试端口
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - app-data:/app/data
+      - app-cache:/app/cache
+      - app-logs:/app/logs
+    environment:
+      - NODE_ENV=development
+      - VUE_APP_API_BASE_URL=http://localhost:3000
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - redis
+      - postgres
+
+  # Redis 缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: multi-social-platform-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-your_redis_password}
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+
+  # PostgreSQL 数据库（可选，用于存储用户数据）
+  postgres:
+    image: postgres:15-alpine
+    container_name: multi-social-platform-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-multi_social_platform}
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-your_postgres_password}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-multi_social_platform}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  # Nginx 反向代理（生产环境）
+  nginx:
+    image: nginx:alpine
+    container_name: multi-social-platform-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - app
+    profiles:
+      - production
+
+  # 监控服务 - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: multi-social-platform-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - app-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # 监控服务 - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: multi-social-platform-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+  # 日志收集 - ELK Stack
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: multi-social-platform-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - app-network
+    restart: unless-stopped
+    profiles:
+      - logging
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.8.0
+    container_name: multi-social-platform-logstash
+    volumes:
+      - ./logging/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    ports:
+      - "5044:5044"
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+    profiles:
+      - logging
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: multi-social-platform-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+    profiles:
+      - logging
+
+  # 测试服务
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: multi-social-platform-test
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+      - CI=true
+    networks:
+      - app-network
+    command: ["npm", "run", "test:ci"]
+    profiles:
+      - testing
+
+  # Electron 构建服务
+  electron-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: electron-builder
+    container_name: multi-social-platform-builder
+    volumes:
+      - ./dist_electron:/output
+    environment:
+      - USE_HARD_LINKS=false
+    profiles:
+      - build
+
+# 网络定义
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 数据卷定义
+volumes:
+  app-data:
+    driver: local
+  app-cache:
+    driver: local
+  app-logs:
+    driver: local
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local
+  nginx-logs:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  elasticsearch-data:
+    driver: local
+
+# 开发环境快速启动配置
+x-common-variables: &common-variables
+  NODE_ENV: development
+  TZ: Asia/Shanghai
+
+# 扩展配置
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# 服务模板
+x-app-service: &app-service
+  logging: *default-logging
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=100m
