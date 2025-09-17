@@ -295,8 +295,7 @@ import {
   Link, 
   Monitor, 
   Tools, 
-  Setting,
-  FolderOpened 
+  Setting,s
 } from '@element-plus/icons-vue'
 
 // Props
