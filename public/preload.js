@@ -48,6 +48,8 @@ window.electronAPI = {
     ipcRenderer.invoke("test-proxy", proxyConfig).catch((error) => {
       console.error("Test proxy failed", error);
     }),
+    checkProxyStatus: (containerId) => ipcRenderer.invoke("check-proxy-status", containerId),
+  resetContainerProxy: (containerId, config) => ipcRenderer.invoke("reset-container-proxy", containerId, config),
   translateText: (text, targetLang) =>
     ipcRenderer
       .invoke("translate-text", text, targetLang)

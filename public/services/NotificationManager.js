@@ -232,6 +232,21 @@ class NotificationManager {
           console.log('[NotificationIntercept] Already injected, skipping...');
           return;
         }
+        // ====== 1. 伪造 visibility & focus ======
+  try {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden"
+    });
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => true
+    });
+    document.hasFocus = () => false;
+    console.log("📡 已伪造 visibilityState = hidden, hasFocus = false");
+  } catch (e) {
+    console.warn("⚠️ visibility 伪造失败:", e);
+  }
         window.__notificationInterceptInjected = true;
         
         console.log('[NotificationIntercept] 🚀 Injecting notification intercept...');

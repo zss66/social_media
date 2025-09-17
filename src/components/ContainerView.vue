@@ -64,6 +64,15 @@
             :loading="isRebuilding"
           />
         </el-tooltip>
+        <el-tooltip content="代理配置验证">
+          <el-button
+            @click="proxyDiagnosticToolVisible = true"
+            :icon="Refresh"
+            circle
+            size="small"
+            :disabled="isSleeping"
+          />
+        </el-tooltip>
 
         <el-tooltip content="刷新容器">
           <el-button
@@ -305,6 +314,9 @@
     <el-dialog v-model="showSettings" title="容器设置" width="600px">
       <ContainerSettings :container="container" @save="handleSaveSettings" @cancel="handlecancleSettings" />
     </el-dialog>
+    <el-dialog v-model="proxyDiagnosticToolVisible" title="代理诊断工具" width="600px" @close="handleCloseProxyDiagnosticTool">
+      <ProxyDiagnosticTool :container="container"  />
+    </el-dialog>
   </div>
 </template>
 
@@ -327,6 +339,7 @@ import {
   Loading,
 } from "@element-plus/icons-vue";
 import ContainerSettings from "./ContainerSettings.vue";
+import ProxyDiagnosticTool from "./ProxyDiagnosticTool.vue";
 import { useStore } from "vuex";
 import { injectFeatures } from "@/utils/injector.js";
 
@@ -368,7 +381,7 @@ const rebuildProgress = ref(0);
 const lastSleepData = ref(null);
 const preloadpath = ref("");
 const linepreloadpath = ref("");
-// 计算属性
+const proxyDiagnosticToolVisible = ref(false);// 计算属性
 const isSleeping = computed(() => props.container?.status === "sleeping");
 
 const getStatusText = (status) => {
@@ -455,15 +468,15 @@ watch(
   { immediate: true }
 );
 
-
+const handleCloseProxyDiagnosticTool = () => {
+  proxyDiagnosticToolVisible.value = false;
+};
 const handleWebviewError = (event) => {
   console.error("Webview load error:", event);
   ElMessage.error("加载容器失败，请检查网络连接或容器状态");
 };
 // webview DOM重建
 const rebuildWebviewDOM = async () => {
-  
-  console.log("Rebuilding webview DOM...");
   isRebuilding.value = true;
   rebuildStep.value = "准备重建容器DOM...";
   rebuildProgress.value = 20;
@@ -515,8 +528,6 @@ const sleepContainer = async () => {
         console.warn("Failed to get sleep data info:", error);
       }
     }
-
-    ElMessage.success("容器已销毁休眠，进程完全停止");
   } catch (error) {
     console.error("Sleep container failed:", error);
     ElMessage.error(`休眠失败: ${error.message}`);
@@ -543,7 +554,7 @@ const wakeContainer = async () => {
     rebuildProgress.value = 80;
     isRebuilding.value = true;
     showWebview.value = true
-    ElMessage.success("容器已重建唤醒");
+   
   } catch (error) {
     console.error("Wake container failed:", error);
     ElMessage.error(`唤醒失败: ${error.message}`);

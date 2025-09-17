@@ -123,6 +123,7 @@ const actions = {
   async saveContainers({ state }) {
     try {
       localStorage.setItem('app-containers', JSON.stringify(state.containers))
+      
     } catch (error) {
       console.error('Failed to save containers:', error)
       ElMessage.error('保存容器配置失败')
@@ -164,7 +165,15 @@ const actions = {
     try {
       commit('UPDATE_CONTAINER', { id, updates })
       await dispatch('saveContainers')
-      ElMessage.success('容器设置已更新')
+      if (window.electronAPI?.rebuildContainerWebview) {
+        const container = state.containers.find(c => c.id === id)
+        if (!container) throw new Error('容器不存在')
+        const config = JSON.parse(JSON.stringify(container))
+        const result = await window.electronAPI.rebuildContainerWebview(id, config)
+        if (!result.success) throw new Error(result.error || '重建容器失败')
+        
+        console.log('Container rebuilt:', result)
+      }
     } catch (error) {
       console.error('Failed to update container:', error)
       ElMessage.error('更新容器失败')
@@ -201,7 +210,7 @@ const actions = {
       if (!container) throw new Error('容器不存在')
 
       commit('SET_CONTAINER_STATUS', { id, status: 'loading' })
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      
       commit('SET_CONTAINER_STATUS', { id, status: 'ready' })
 
       ElMessage.success('容器已重新加载')

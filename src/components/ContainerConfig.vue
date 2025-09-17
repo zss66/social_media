@@ -333,9 +333,28 @@ const applyFingerprintTemplate = (template) => {
 
 const testProxy = async () => {
   proxyTesting.value = true
+  console.log('触发代理测试', config.proxy)
   try {
     // 模拟代理测试
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    if (config.proxy.enabled) {
+      console.log('开始测试代理连接')
+      if(window.electronAPI?.testProxy){
+        const result = await window.electronAPI.testProxy({
+          type: config.proxy.type,
+          host: config.proxy.host,
+          port: config.proxy.port,
+          username: config.proxy.username,
+          password: config.proxy.password
+        })
+        if (!result.success) throw new Error(result.error || '代理连接失败')
+        console.log('Proxy test result:', result)
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+
+    }
+    console.log('代理测试完成')
+
     ElMessage.success('代理连接测试成功')
   } catch (error) {
     ElMessage.error('代理连接测试失败')
@@ -426,6 +445,7 @@ onMounted(() => {
 watch(
   () => props.platform,
   (newPlatform) => {
+    console.log('Platform changed:', newPlatform)
     if (newPlatform && newPlatform.name) {
       config.name = `${newPlatform.name} - ${new Date().toLocaleString()}`
     }

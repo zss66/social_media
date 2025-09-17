@@ -62,7 +62,7 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="端口">
+              <el-form-item label="端口" label-width="auto">
                 <el-input-number 
                   v-model="settings.proxy.port" 
                   :min="1" 
@@ -74,13 +74,13 @@
           </el-row>
           
           <el-row :gutter="16">
-            <el-col :span="12">
+            <el-col :span="16">
               <el-form-item label="用户名">
                 <el-input v-model="settings.proxy.username" />
               </el-form-item>
             </el-col>
-            <el-col :span="12">
-              <el-form-item label="密码">
+            <el-col :span="8">
+              <el-form-item label="密码" label-width="auto">
                 <el-input 
                   v-model="settings.proxy.password" 
                   type="password" 
@@ -381,6 +381,7 @@ const applySettings = async () => {
     // await new Promise(resolve => setTimeout(resolve, 1000))
     
     emit('save', { ...settings })
+    console.log( settings)
     ElMessage.success('设置已应用')
   } catch (error) {
     ElMessage.error('应用设置失败')
