@@ -323,8 +323,12 @@ import {
   Link, 
   Monitor, 
   Tools, 
+<<<<<<< HEAD
   Setting,
   FolderOpened
+=======
+  Setting
+>>>>>>> 441658e8b820c2b2ec536d04b719d208277467fa
 } from '@element-plus/icons-vue'
 
 // Props
