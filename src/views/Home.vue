@@ -310,9 +310,7 @@ const handleConfirmContainer = async (config) => {
     console.log('容器数据传递完成' )
 
     activeTab.value = containerData.id
-    showContainerConfig.value = false
-    
-    
+    handlecancleContainer()
   } catch (error) {
     ElMessage.error(`创建容器失败: ${error.message}`)
   }
