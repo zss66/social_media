@@ -173,6 +173,12 @@
       <div id="mainbox" ></div>
       <!-- 网页容器 -->
       <div class="webview-container" v-show="!isSleeping && !isRebuilding">
+        <!-- 加载失败的内容展示 -->
+        <div class="webviewError" v-if="isWebviewError">
+          <img src="/assets/images/webError.png">
+          加载容器失败，请检查网络连接或容器状态
+        </div>
+        <!-- webview区域 -->
         <webview
           v-if="showWebview"
           ref="webviewRef"
@@ -195,6 +201,7 @@
           @destroyed="onWebviewDestroyed"
           @console-message="handleConsoleMessage"
         />
+      
       </div>
 
       <!-- 加载状态 -->
@@ -372,7 +379,7 @@ const canGoBack = ref(false)
 const canGoForward = ref(false)
 const autoReplyEnabled = ref(false);
 const autoReplyCount = ref(0);
-
+const isWebviewError = ref(false)//是否加载失败？
 // 休眠重建相关状态
 const isDestroying = ref(false);
 const isRebuilding = ref(false);
@@ -424,6 +431,7 @@ function goForward() {
 
 function reload() {
   const webview = webviewRef.value
+  isWebviewError.value = false
   if (webview) {
     webview.reload()
   }
@@ -472,6 +480,7 @@ const handleCloseProxyDiagnosticTool = () => {
   proxyDiagnosticToolVisible.value = false;
 };
 const handleWebviewError = (event) => {
+  isWebviewError.value = true
   console.error("Webview load error:", event);
   ElMessage.error("加载容器失败，请检查网络连接或容器状态");
 };
@@ -755,6 +764,7 @@ const handleConsoleMessage = (event) => {
 
 // 其他原有方法保持不变
 const reloadContainer = () => {
+  isWebviewError.value = false
   if (webviewRef.value && !isSleeping.value) {
     emit("update-container", props.container.id, { status: "loading" });
     webviewRef.value.reload();
@@ -1291,5 +1301,12 @@ onUnmounted(() => {
 
 .translated-text p {
   border-left: 3px solid #67c23a;
+}
+.webviewError{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  flex-direction: column;
 }
 </style>
