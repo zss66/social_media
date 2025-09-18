@@ -251,16 +251,6 @@ async function createContainerSession(containerId, config = {}) {
       }
     }
 
-    // 🔥 步骤3：设置证书验证策略
-    ses.setCertificateVerifyProc((request, callback) => {
-      if (config.proxy?.enabled) {
-        log("debug", `🔒 代理模式接受证书: ${request.hostname}`);
-        callback(0); // 接受所有证书
-      } else {
-        callback(-2); // 使用系统默认验证
-      }
-    });
-
     // 🔥 步骤4：代理配置 - 关键修复点
     log("info", "代理配置:", config);
     if (config.proxy?.enabled) {
