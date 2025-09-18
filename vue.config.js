@@ -120,7 +120,16 @@ module.exports = defineConfig({
       ])
     }
   }
-    
+    config.module
+      .rule('vue')
+      .use('vue-loader')
+      .tap((options) => {
+        options.compilerOptions = {
+          ...options.compilerOptions,
+          isCustomElement: (tag) => ['webview', 'el-loading-directive'].includes(tag),
+        };
+        return options;
+      });
     // SVG处理
     config.module
       .rule('svg')

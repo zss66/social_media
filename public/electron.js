@@ -204,10 +204,51 @@ async function createContainerSession(containerId, config = {}) {
     
     
     config=config.config || config; // 兼容传入整个container对象的情况
-    // 🔥 步骤2：设置用户代理
+    // 🔥 步骤2：设置用户代理和其他指纹
     if (config.fingerprint?.userAgent) {
       ses.setUserAgent(config.fingerprint.userAgent);
       log("info", "👤 用户代理已设置:", config.fingerprint.userAgent);
+      
+      // 附加指纹设置
+      if (config.fingerprint.acceptLanguages) {
+        ses.setUserAgent(config.fingerprint.userAgent, config.fingerprint.acceptLanguages);
+        log("info", "🌐 Accept Languages 已设置:", config.fingerprint.acceptLanguages);
+      }
+      
+      // 模拟屏幕分辨率（通过 WebPreferences 影响渲染）
+      if (config.fingerprint.screenResolution) {
+        const [width, height] = config.fingerprint.screenResolution.split('x').map(Number);
+        ses.webRequest.onBeforeSendHeaders({ urls: ['<all_urls>'] }, (details, callback) => {
+          details.requestHeaders['X-Screen-Resolution'] = `${width}x${height}`;
+          callback({ requestHeaders: details.requestHeaders });
+        });
+        log("info", "📏 屏幕分辨率模拟已设置:", config.fingerprint.screenResolution);
+      }
+      
+      // 设置时区（通过环境变量或模拟）
+      if (config.fingerprint.timezone) {
+        process.env.TZ = config.fingerprint.timezone;
+        log("info", "🕒 时区已设置:", config.fingerprint.timezone);
+      }
+      
+      // 模拟 WebGL 指纹（简单伪造 vendor/renderer 信息）
+      if (config.fingerprint.webglVendor) {
+        ses.webRequest.onBeforeRequest({ urls: ['<all_urls>'] }, (details, callback) => {
+          if (details.resourceType === 'xhr' || details.resourceType === 'fetch') {
+            ses.setPermissionRequestHandler((webContents, permission, callback) => {
+              if (permission === 'webgl') {
+                webContents.session.webglContextAttributes = {
+                  vendor: config.fingerprint.webglVendor,
+                  renderer: config.fingerprint.webglRenderer || 'WebKit WebGL'
+                };
+              }
+              callback(true);
+            });
+          }
+          callback({});
+        });
+        log("info", "🎨 WebGL 指纹已设置:", `${config.fingerprint.webglVendor}/${config.fingerprint.webglRenderer || 'WebKit WebGL'}`);
+      }
     }
 
     // 🔥 步骤3：设置证书验证策略

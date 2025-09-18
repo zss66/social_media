@@ -161,6 +161,7 @@
     <!-- 容器设置弹窗 -->
     <el-dialog v-model="showSettings" title="容器设置" width="600px">
       <ContainerSettings 
+         :showSettings="showSettings"
         :container="container"
         @save="handleSaveSettings"
         @cancel="handlecancleSettings"
@@ -213,14 +214,7 @@ const container = computed(() => {
 const popularPlatforms = computed(() => {
   const popularIds = ['whatsapp', 'telegram', 'wechat', 'discord']
   return platforms.value.filter(p => popularIds.includes(p.id))
-})
-const props = defineProps({
-  container: {
-    type: Object,
-    required: true
-  }
-})
-// 方法
+})// 方法
 const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2)
 }
@@ -310,7 +304,7 @@ const handleConfirmContainer = async (config) => {
     console.log('容器数据传递完成' )
 
     activeTab.value = containerData.id
-    showContainerConfig.value = false
+    handlecancleContainer()   
     
     
   } catch (error) {
@@ -399,9 +393,7 @@ const exportContainers = async () => {
 }
 
 watch(activeContainers, (newContainers, oldContainers) => {
-  console.warn('activeContainers changed', newContainers, oldContainers)
-  console.warn(typeof newContainers)
-  console.warn(typeof oldContainers)
+
   
   // 处理 oldContainers 为 undefined 的情况
   const oldArray = oldContainers || []
