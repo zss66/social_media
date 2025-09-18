@@ -135,6 +135,34 @@
               </el-form-item>
             </el-col>
           </el-row>
+          
+          <el-form-item label="语言设置">
+            <el-select v-model="settings.fingerprint.acceptLanguages" multiple>
+              <el-option label="中文 (zh-CN)" value="zh-CN" />
+              <el-option label="英语 (en-US)" value="en-US" />
+              <el-option label="日语 (ja-JP)" value="ja-JP" />
+              <el-option label="韩语 (ko-KR)" value="ko-KR" />
+            </el-select>
+          </el-form-item>
+          
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="WebGL Vendor">
+                <el-input 
+                  v-model="settings.fingerprint.webglVendor" 
+                  placeholder="如 Google Inc."
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="WebGL Renderer">
+                <el-input 
+                  v-model="settings.fingerprint.webglRenderer" 
+                  placeholder="如 ANGLE (NVIDIA GeForce GTX 1080)"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
         </template>
       </el-card>
       
@@ -274,20 +302,20 @@
           </div>
         </el-form-item>
       </el-card>
+      
+      <div class="settings-actions">
+        <el-button @click="cancel">取消</el-button>
+        <el-button @click="resetToDefault" type="info">重置</el-button>
+        <el-button @click="applySettings" type="primary" :loading="applying">
+          应用设置
+        </el-button>
+      </div>
     </el-form>
-    
-    <div class="settings-actions">
-      <el-button @click="cancel">取消</el-button>
-      <el-button @click="resetToDefault" type="info">重置</el-button>
-      <el-button @click="applySettings" type="primary" :loading="applying">
-        应用设置
-      </el-button>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { 
@@ -295,7 +323,8 @@ import {
   Link, 
   Monitor, 
   Tools, 
-  Setting
+  Setting,
+  FolderOpened
 } from '@element-plus/icons-vue'
 
 // Props
@@ -303,6 +332,10 @@ const props = defineProps({
   container: {
     type: Object,
     required: true
+  },
+  showSettings:{
+    type: Boolean,
+    default: false
   }
 })
 
@@ -329,7 +362,9 @@ const settings = reactive({
     userAgent: '',
     screenResolution: '1920x1080',
     timezone: 'Asia/Shanghai',
-    language: ['zh-CN']
+    acceptLanguages: ['zh-CN'],
+    webglVendor: '',
+    webglRenderer: ''
   },
   enableTranslation: true,
   enableAutoReply: false,
@@ -378,9 +413,8 @@ const applySettings = async () => {
   try {
     // 模拟应用设置的延迟
     // await new Promise(resolve => setTimeout(resolve, 1000))
-    
     emit('save', { ...settings })
-    console.log( settings)
+    console.log(settings)
     ElMessage.success('设置已应用')
   } catch (error) {
     ElMessage.error('应用设置失败')
@@ -422,7 +456,9 @@ const resetToDefault = async () => {
         userAgent: '',
         screenResolution: '1920x1080',
         timezone: 'Asia/Shanghai',
-        language: ['zh-CN']
+        acceptLanguages: ['zh-CN'],
+        webglVendor: '',
+        webglRenderer: ''
       },
       enableTranslation: true,
       enableAutoReply: false,
@@ -518,8 +554,19 @@ const resetContainer = async () => {
   }
 }
 
+watch(
+  () => props.showSettings,
+  (newshow) => {
+    if (newshow) {
+      const config = props.container.config || {}
+      Object.assign(settings, JSON.parse(JSON.stringify(config)))
+    }
+  },
+)
+
 // 组件挂载时初始化设置
 onMounted(() => {
+  console.log('触发组件挂载')
   const config = props.container.config || {}
   Object.assign(settings, JSON.parse(JSON.stringify(config)))
   settings.name = props.container.name

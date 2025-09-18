@@ -238,7 +238,7 @@
         </el-tooltip>
 
         <el-dropdown @command="handleTranslationLanguage" trigger="click">
-          <el-button size="small" type="text">
+          <el-button size="small" link>
             {{ pluginConfig.targetLanguage }}
             <el-icon><ArrowDown /></el-icon>
           </el-button>
@@ -319,7 +319,7 @@
 
     <!-- 容器设置弹窗 -->
     <el-dialog v-model="showSettings" title="容器设置" width="600px">
-      <ContainerSettings :container="container" @save="handleSaveSettings" @cancel="handlecancleSettings" />
+      <ContainerSettings :showSettings="showSettings"  :container="container" @save="handleSaveSettings" @cancel="handlecancleSettings" />
     </el-dialog>
     <el-dialog v-model="proxyDiagnosticToolVisible" title="代理诊断工具" width="600px" @close="handleCloseProxyDiagnosticTool">
       <ProxyDiagnosticTool :container="container"  />
@@ -635,7 +635,7 @@ if (result) {
       ElMessage.error("容器重建失败");
     }
   }
-  emit("webviewRef", webviewRef.value);
+  // emit("webviewRef", webviewRef.value);
   // 注入自定义脚本
   setTimeout(() => {
     injectFeatures(

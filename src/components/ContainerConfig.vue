@@ -159,13 +159,32 @@
           </el-row>
           
           <el-form-item label="语言设置">
-            <el-select v-model="config.fingerprint.language" multiple>
+            <el-select v-model="config.fingerprint.acceptLanguages" multiple>
               <el-option label="中文 (zh-CN)" value="zh-CN" />
               <el-option label="英语 (en-US)" value="en-US" />
               <el-option label="日语 (ja-JP)" value="ja-JP" />
               <el-option label="韩语 (ko-KR)" value="ko-KR" />
             </el-select>
           </el-form-item>
+          
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="WebGL Vendor">
+                <el-input 
+                  v-model="config.fingerprint.webglVendor" 
+                  placeholder="如 Google Inc."
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="WebGL Renderer">
+                <el-input 
+                  v-model="config.fingerprint.webglRenderer" 
+                  placeholder="如 ANGLE (NVIDIA GeForce GTX 1080)"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
         </template>
       </el-card>
       
@@ -229,7 +248,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted,watch } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { User, Link, Monitor, Tools } from '@element-plus/icons-vue'
 
@@ -251,7 +270,7 @@ const confirming = ref(false)
 
 const config = reactive({
   name: '',
-  id:props.platform.id,
+  id: props.platform.id,
   proxy: {
     enabled: false,
     type: 'http',
@@ -266,7 +285,9 @@ const config = reactive({
     userAgent: '',
     screenResolution: '1920x1080',
     timezone: 'Asia/Shanghai',
-    language: ['zh-CN']
+    acceptLanguages: ['zh-CN'],
+    webglVendor: '',
+    webglRenderer: ''
   },
   enableTranslation: true,
   enableAutoReply: false,
@@ -295,31 +316,41 @@ const fingerprintTemplates = {
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     screenResolution: '1920x1080',
     timezone: 'Asia/Shanghai',
-    language: ['zh-CN', 'en-US']
+    acceptLanguages: ['zh-CN', 'en-US'],
+    webglVendor: 'Google Inc.',
+    webglRenderer: 'ANGLE (NVIDIA GeForce GTX 1080 Direct3D11 vs_5_0 ps_5_0)'
   },
   'macos-safari': {
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
     screenResolution: '2560x1440',
     timezone: 'America/New_York',
-    language: ['en-US']
+    acceptLanguages: ['en-US'],
+    webglVendor: 'Apple Inc.',
+    webglRenderer: 'Apple GPU'
   },
   'linux-firefox': {
     userAgent: 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/121.0',
     screenResolution: '1920x1080',
     timezone: 'Europe/London',
-    language: ['en-US']
+    acceptLanguages: ['en-US'],
+    webglVendor: 'Mozilla',
+    webglRenderer: 'Mesa DRI Intel(R) HD Graphics'
   },
   'android-chrome': {
     userAgent: 'Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
     screenResolution: '1080x2340',
     timezone: 'Asia/Shanghai',
-    language: ['zh-CN']
+    acceptLanguages: ['zh-CN'],
+    webglVendor: 'Google Inc.',
+    webglRenderer: 'Adreno (TM) 640'
   },
   'ios-safari': {
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
     screenResolution: '1170x2532',
     timezone: 'America/New_York',
-    language: ['en-US']
+    acceptLanguages: ['en-US'],
+    webglVendor: 'Apple Inc.',
+    webglRenderer: 'Apple A16 GPU'
   }
 }
 
@@ -338,7 +369,7 @@ const testProxy = async () => {
     // 模拟代理测试
     if (config.proxy.enabled) {
       console.log('开始测试代理连接')
-      if(window.electronAPI?.testProxy){
+      if (window.electronAPI?.testProxy) {
         const result = await window.electronAPI.testProxy({
           type: config.proxy.type,
           host: config.proxy.host,
@@ -351,10 +382,8 @@ const testProxy = async () => {
       } else {
         await new Promise(resolve => setTimeout(resolve, 2000))
       }
-
     }
     console.log('代理测试完成')
-
     ElMessage.success('代理连接测试成功')
   } catch (error) {
     ElMessage.error('代理连接测试失败')
@@ -367,7 +396,7 @@ const resetConfig = () => {
   // 重置配置到默认值
   Object.assign(config, {
     name: '',
-    id:props.platform.id,
+    id: props.platform.id,
     proxy: {
       enabled: false,
       type: 'http',
@@ -382,7 +411,9 @@ const resetConfig = () => {
       userAgent: '',
       screenResolution: '1920x1080',
       timezone: 'Asia/Shanghai',
-      language: ['zh-CN']
+      acceptLanguages: ['zh-CN'],
+      webglVendor: '',
+      webglRenderer: ''
     },
     enableTranslation: true,
     enableAutoReply: false,
@@ -391,10 +422,8 @@ const resetConfig = () => {
     enableNotification: true,
     enableLogging: true
   })
-  
   // 应用默认指纹模板
   applyFingerprintTemplate('windows-chrome')
-  
   ElMessage.info('配置已重置')
 }
 
@@ -407,26 +436,23 @@ const saveAsTemplate = () => {
     config: { ...config },
     createdAt: new Date().toISOString()
   }
-  
   templates.push(template)
   localStorage.setItem('containerTemplates', JSON.stringify(templates))
-  
   ElMessage.success('模板保存成功')
 }
+
 const cancel = () => {
   emit('cancel')
 }
+
 const confirmConfig = async () => {
   try {
     await formRef.value.validate()
     confirming.value = true
-    
     // 模拟创建过程
     console.log('正在创建容器...')
-    
     emit('confirm', { ...config })
     console.log('创建容器的数据已经传输完成')
-
   } catch (error) {
     ElMessage.error('请检查表单配置')
   } finally {
@@ -438,10 +464,10 @@ const confirmConfig = async () => {
 onMounted(() => {
   // 设置默认容器名称
   config.name = `${props.platform.name} - ${new Date().toLocaleString()}`
-  
   // 应用默认指纹模板
   applyFingerprintTemplate('windows-chrome')
 })
+
 watch(
   () => props.platform,
   (newPlatform) => {
