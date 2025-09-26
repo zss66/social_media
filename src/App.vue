@@ -22,7 +22,7 @@
     
     <!-- 全局设置弹窗 -->
     <el-dialog v-model="showGlobalSettings" title="全局设置" width="600px">
-      <GlobalSettings @save="handleSaveGlobalSettings" />
+      <GlobalSettings :showGlobalSettings="showGlobalSettings" @save="handleSaveGlobalSettings" />
     </el-dialog>
     
     <!-- 全局加载组件 -->

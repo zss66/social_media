@@ -1,40 +1,30 @@
-(() => {
-  console.log("✅ WhatsApp 拦截脚本已启动");
+function getLexicalEditor() {
+  let el = document.querySelector(
+    'div[role="textbox"][contenteditable="true"][data-lexical-editor="true"][aria-label="输入消息"]'
+  );
+  if (el) return el;
 
-  // ====== 1. 伪造 visibility & focus ======
-  try {
-    Object.defineProperty(document, "visibilityState", {
-      configurable: true,
-      get: () => "hidden"
-    });
-    Object.defineProperty(document, "hidden", {
-      configurable: true,
-      get: () => true
-    });
-    document.hasFocus = () => false;
-    console.log("📡 已伪造 visibilityState = hidden, hasFocus = false");
-  } catch (e) {
-    console.warn("⚠️ visibility 伪造失败:", e);
+  const cands = [...document.querySelectorAll(
+    'div[role="textbox"][contenteditable="true"][data-lexical-editor="true"]'
+  )];
+  return cands.length ? cands[0] : null;
+}
+
+function bindEditorKeydown() {
+  const el = getLexicalEditor();
+  if (!el) {
+    console.warn("没找到编辑器");
+    return;
   }
-
-  // ====== 2. 拦截 Notification ======
-  try {
-    const OriginalNotification = window.Notification;
-    function InterceptedNotification(title, options) {
-      console.log("📩 捕获到通知:", title, options);
-      window.dispatchEvent(new CustomEvent("whatsapp-notification", {
-        detail: { title, options }
-      }));
-      return new OriginalNotification(title, options);
+  console.log("绑定编辑器");
+  console.log(el);
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      console.log("捕获到编辑器内 Enter");
+      e.preventDefault();
+      interceptSendAction();
     }
-    InterceptedNotification.requestPermission = OriginalNotification.requestPermission.bind(OriginalNotification);
-    Object.defineProperty(InterceptedNotification, "permission", {
-      get: () => OriginalNotification.permission
-    });
-    window.Notification = InterceptedNotification;
-    console.log("🔔 Notification 已拦截");
-  } catch (e) {
-    console.warn("⚠️ Notification 拦截失败:", e);
-  }
+  });
+}
 
- })();
+bindEditorKeydown();

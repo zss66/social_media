@@ -2,9 +2,8 @@ export const instagramTranslateScript = `
 (function () {
   console.log('[Instagram Translator] 脚本开始执行');
 
-  // 选择器定位消息文本所在最内层 div
   const SELECTORS = {
-    MESSAGE_WRAPPER: 'div[role="presentation"] > span > div.html-div',
+    MESSAGE_WRAPPER: 'div[role="presentation"] > span > div.html-div:not(:has(.ig-translator-container))'
   };
 
   const STYLES = \`
@@ -37,7 +36,7 @@ export const instagramTranslateScript = `
 
   const CACHE_KEY = 'instagramTranslationCache';
   const MAX_CACHE_SIZE = 500;
-  const CACHE_EXPIRE_MS = 30 * 24 * 60 * 60 * 1000; // 30天
+  const CACHE_EXPIRE_MS = 30 * 24 * 60 * 60 * 1000;
 
   function hashText(text) {
     let hash = 0;
@@ -94,15 +93,29 @@ export const instagramTranslateScript = `
     document.head.appendChild(styleElement);
   }
 
-  function getMessageText(wrapper) {
-    return wrapper?.textContent?.trim() || '';
+  function getOwnTextContent(element) {
+    let text = '';
+    element.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent;
+      } else if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        !node.classList.contains('time') &&
+        !node.classList.contains('ig-translator-container')
+      ) {
+        text += node.textContent;
+      }
+    });
+    return text.trim();
   }
 
   function getConfig() {
     return {
-      targetLanguage: window.pluginConfig?.targetLanguage || 'zh-CN',
-      buttonText: window.pluginConfig?.buttonText || '🌐 翻译',
-      loadingText: window.pluginConfig?.loadingText || '翻译中...'
+      targetLanguage: window.pluginConfig?.translation?.targetLanguage || localStorage.getItem('instagramTranslationLanguage') || 'zh-CN',
+      buttonText: window.pluginConfig?.translation?.buttonText || '🌐 翻译',
+      channel: window.pluginConfig?.translation.channel || 'google',
+      autoTranslateReceive: window.pluginConfig?.translation?.autoTranslateReceive || false,
+      loadingText: window.pluginConfig?.translation?.loadingText || '翻译中...'
     };
   }
 
@@ -111,7 +124,7 @@ export const instagramTranslateScript = `
     if (wrapper.parentElement.querySelector('.ig-translator-container')) return;
 
     const config = getConfig();
-    const originalText = getMessageText(wrapper);
+    const originalText = getOwnTextContent(wrapper);
     if (!originalText) return;
 
     const msgId = hashText(originalText);
@@ -142,7 +155,8 @@ export const instagramTranslateScript = `
       resultDiv.textContent = '';
 
       try {
-        const response = await window.electronAPI.translateText(originalText, currentConfig.targetLanguage);
+        const response = await window.electronAPI.translateText(originalText, currentConfig.channel, currentConfig.targetLanguage);
+        console.log('翻译目标语言:', currentConfig.targetLanguage);
         resultDiv.textContent = response?.success ? response.translatedText : '翻译失败';
 
         if (response?.success) {
@@ -167,7 +181,8 @@ export const instagramTranslateScript = `
       const newLang = prompt('输入目标语言代码 (如 zh-CN, en, ja):', config.targetLanguage);
       if (newLang) {
         window.pluginConfig = window.pluginConfig || {};
-        window.pluginConfig.targetLanguage = newLang.trim();
+        window.pluginConfig.translation = window.pluginConfig.translation || {};
+        window.pluginConfig.translation.targetLanguage = newLang.trim();
         localStorage.setItem('instagramTranslationLanguage', newLang.trim());
       }
     };
@@ -176,6 +191,11 @@ export const instagramTranslateScript = `
     container.appendChild(resultDiv);
 
     wrapper.parentElement.appendChild(container);
+
+    // 新增自动翻译逻辑：如果启用自动翻译且无缓存，则自动触发翻译
+    if (config.autoTranslateReceive && !translationCache[msgId]) {
+      btn.click();
+    }
   }
 
   function initTranslator() {

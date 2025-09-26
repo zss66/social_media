@@ -1,11 +1,11 @@
 export const telegramTranslateScript = `
 (function () {
-  console.log('[telegram Translator] 脚本开始执行');
+  console.log("[telegram Translator] 脚本开始执行");
 
   const SELECTORS = {
-    MESSAGE_CONTAINER: 'div.message',
-    MESSAGE_TEXT: 'div.message:not(:has(.tg-translator-container))',
-    MESSAGE_CONTENT: 'div.message'
+    MESSAGE_CONTAINER: "div.message",
+    MESSAGE_TEXT: "div.message:not(:has(.tg-translator-container))",
+    MESSAGE_CONTENT: "div.message",
   };
 
   const STYLES = \`
@@ -43,17 +43,17 @@ export const telegramTranslateScript = `
   .tg-translator-container {}
   \`;
 
-  const CACHE_KEY = 'telegramTranslationCache';
+  const CACHE_KEY = "telegramTranslationCache";
   const MAX_CACHE_SIZE = 500;
   const CACHE_EXPIRE_MS = 30 * 24 * 60 * 60 * 1000;
 
   function hashText(text) {
     let hash = 0;
     for (let i = 0; i < text.length; i++) {
-      hash = ((hash << 5) - hash) + text.charCodeAt(i);
+      hash = (hash << 5) - hash + text.charCodeAt(i);
       hash |= 0;
     }
-    return 'msg-' + Math.abs(hash);
+    return "msg-" + Math.abs(hash);
   }
 
   function loadCache() {
@@ -95,20 +95,20 @@ export const telegramTranslateScript = `
   saveCache(translationCache);
 
   function injectStyles() {
-    const styleElement = document.createElement('style');
+    const styleElement = document.createElement("style");
     styleElement.textContent = STYLES;
     document.head.appendChild(styleElement);
   }
 
   function getOwnTextContent(element) {
-    let text = '';
+    let text = "";
     element.childNodes.forEach((node) => {
       if (node.nodeType === Node.TEXT_NODE) {
         text += node.textContent;
       } else if (
         node.nodeType === Node.ELEMENT_NODE &&
-        !node.classList.contains('time') &&
-        !node.classList.contains('tg-translator-container')
+        !node.classList.contains("time") &&
+        !node.classList.contains("tg-translator-container")
       ) {
         text += node.textContent;
       }
@@ -118,15 +118,18 @@ export const telegramTranslateScript = `
 
   function getConfig() {
     return {
-      targetLanguage: window.pluginConfig?.targetLanguage || 'zh-CN',
-      buttonText: window.pluginConfig?.buttonText || '🌐 翻译',
-      loadingText: window.pluginConfig?.loadingText || '翻译中...'
+      targetLanguage: window.pluginConfig?.translation.targetLanguage || "zh-CN",
+      buttonText: window.pluginConfig?.translation.buttonText || "🌐 翻译",
+      channel: window.pluginConfig?.translation.channel || 'google',
+      autoTranslateReceive:
+        window.pluginConfig?.translation.autoTranslateReceive || false,
+      loadingText: window.pluginConfig?.translation.loadingText || "翻译中...",
     };
   }
 
   function createTranslateButton(messageDiv) {
     if (!messageDiv) return;
-    if (messageDiv.querySelector('.tg-translator-container')) return;
+    if (messageDiv.querySelector(".tg-translator-container")) return;
 
     const config = getConfig(); // ✅ 每次获取最新配置
     const originalText = getOwnTextContent(messageDiv);
@@ -135,62 +138,74 @@ export const telegramTranslateScript = `
     const msgId = hashText(originalText);
     messageDiv.dataset.msgId = msgId;
 
-    const translatorContainer = document.createElement('div');
-    translatorContainer.className = 'tg-translator-container';
+    const translatorContainer = document.createElement("div");
+    translatorContainer.className = "tg-translator-container";
 
-    const divider = document.createElement('div');
-    divider.className = 'tg-translator-divider';
+    const divider = document.createElement("div");
+    divider.className = "tg-translator-divider";
 
-    const btn = document.createElement('button');
-    btn.className = 'tg-translate-btn';
+    const btn = document.createElement("button");
+    btn.className = "tg-translate-btn";
     btn.textContent = config.buttonText;
 
-    const resultDiv = document.createElement('div');
-    resultDiv.className = 'tg-translate-result';
+    const resultDiv = document.createElement("div");
+    resultDiv.className = "tg-translate-result";
 
     if (translationCache[msgId]) {
       resultDiv.textContent = translationCache[msgId].text;
-      resultDiv.style.display = 'block';
-      btn.style.display = 'none';
+      resultDiv.style.display = "block";
+      btn.style.display = "none";
     }
 
     btn.onclick = async () => {
       const currentConfig = getConfig(); // ✅ 点击时也获取最新配置
       btn.disabled = true;
       btn.textContent = currentConfig.loadingText;
-      btn.style.background = '#999';
-      resultDiv.style.display = 'block';
-      resultDiv.textContent = '';
+      btn.style.background = "#999";
+      resultDiv.style.display = "block";
+      resultDiv.textContent = "";
 
       try {
-        const response = await window.electronAPI.translateText(originalText, currentConfig.targetLanguage);
-        console.log('翻译目标语言:', currentConfig.targetLanguage);
-        resultDiv.textContent = response?.success ? response.translatedText : '翻译失败';
+        const response = await window.electronAPI.translateText(
+          originalText,
+          currentConfig.channel,
+          currentConfig.targetLanguage
+        );
+        console.log("翻译目标语言:", currentConfig.targetLanguage);
+        resultDiv.textContent = response?.success
+          ? response.translatedText
+          : "翻译失败";
 
         if (response?.success) {
-          translationCache[msgId] = { text: response.translatedText, time: Date.now() };
+          translationCache[msgId] = {
+            text: response.translatedText,
+            time: Date.now(),
+          };
           cleanCache(translationCache);
           limitCacheSize(translationCache);
           saveCache(translationCache);
-          btn.style.display = 'none';
+          btn.style.display = "none";
         }
       } catch (error) {
-        resultDiv.textContent = '翻译出错';
-        console.error('翻译错误:', error);
+        resultDiv.textContent = "翻译出错";
+        console.error("翻译错误:", error);
       } finally {
         btn.disabled = false;
         btn.textContent = currentConfig.buttonText;
-        btn.style.background = '#25D366';
+        btn.style.background = "#25D366";
       }
     };
 
     btn.oncontextmenu = (e) => {
       e.preventDefault();
-      const newLang = prompt('输入目标语言代码 (如 zh-CN, en, ja):', config.targetLanguage);
+      const newLang = prompt(
+        "输入目标语言代码 (如 zh-CN, en, ja):",
+        config.targetLanguage
+      );
       if (newLang) {
-        window.pluginConfig = window.pluginConfig || {};
-        window.pluginConfig.targetLanguage = newLang.trim();
-        localStorage.setItem('telegramTranslationLanguage', newLang.trim());
+        window.pluginConfig.translation = window.pluginConfig.translation || {};
+        window.pluginConfig.translation.targetLanguage = newLang.trim();
+        localStorage.setItem("telegramTranslationLanguage", newLang.trim());
       }
     };
 
@@ -199,24 +214,28 @@ export const telegramTranslateScript = `
     translatorContainer.appendChild(resultDiv);
 
     messageDiv.appendChild(translatorContainer);
+    // 新增自动翻译逻辑：如果启用自动翻译且无缓存，则自动触发翻译
+    if (config.autoTranslateReceive && !translationCache[msgId]) {
+      btn.click();
+    }
   }
 
   function initTranslator() {
     injectStyles();
 
-    document.querySelectorAll(SELECTORS.MESSAGE_TEXT).forEach(messageDiv => {
+    document.querySelectorAll(SELECTORS.MESSAGE_TEXT).forEach((messageDiv) => {
       createTranslateButton(messageDiv);
     });
 
-    const observer = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
           if (node.nodeType === 1) {
             const messages = node.matches?.(SELECTORS.MESSAGE_TEXT)
               ? [node]
               : node.querySelectorAll?.(SELECTORS.MESSAGE_TEXT);
 
-            messages?.forEach(messageDiv => {
+            messages?.forEach((messageDiv) => {
               createTranslateButton(messageDiv);
             });
           }
@@ -226,7 +245,7 @@ export const telegramTranslateScript = `
 
     observer.observe(document.body, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
   }
 
@@ -238,10 +257,11 @@ export const telegramTranslateScript = `
     }
   }
 
-  document.addEventListener('DOMContentLoaded', checkElectronAPI);
-  if (document.readyState === 'complete') {
+  document.addEventListener("DOMContentLoaded", checkElectronAPI);
+  if (document.readyState === "complete") {
     checkElectronAPI();
   }
 })();
+
 
 `;

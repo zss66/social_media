@@ -23,6 +23,7 @@
     "http-proxy": "^1.18.1",
     "https-proxy-agent": "^7.0.6",
     "lodash": "^4.17.21",
+    "pinia": "^3.0.3",
     "puppeteer-core": "^20.0.0",
     "socks": "^2.8.7",
     "uuid": "^9.0.1",

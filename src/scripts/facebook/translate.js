@@ -3,7 +3,7 @@ export const facebookTranslateScript = `
   console.log('[Facebook Translator] 脚本开始执行');
 
   const SELECTORS = {
-    MESSAGE_WRAPPER: 'div.html-div > div[role="presentation"] > span > div.html-div',
+    MESSAGE_WRAPPER: 'div.html-div > div[role="presentation"] > span > div.html-div:not(:has(.fb-translator-container))'
   };
 
   const STYLES = \`
@@ -93,15 +93,29 @@ export const facebookTranslateScript = `
     document.head.appendChild(styleElement);
   }
 
-  function getMessageText(wrapper) {
-    return wrapper?.textContent?.trim() || '';
+  function getOwnTextContent(element) {
+    let text = '';
+    element.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent;
+      } else if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        !node.classList.contains('time') &&
+        !node.classList.contains('fb-translator-container')
+      ) {
+        text += node.textContent;
+      }
+    });
+    return text.trim();
   }
 
   function getConfig() {
     return {
-      targetLanguage: window.pluginConfig?.targetLanguage || 'zh-CN',
-      buttonText: window.pluginConfig?.buttonText || '🌐 翻译',
-      loadingText: window.pluginConfig?.loadingText || '翻译中...'
+      targetLanguage: window.pluginConfig?.translation?.targetLanguage || localStorage.getItem('facebookTranslationLanguage') || 'zh-CN',
+      buttonText: window.pluginConfig?.translation?.buttonText || '🌐 翻译',
+      channel: window.pluginConfig?.translation.channel || 'google',
+      autoTranslateReceive: window.pluginConfig?.translation?.autoTranslateReceive || false,
+      loadingText: window.pluginConfig?.translation?.loadingText || '翻译中...'
     };
   }
 
@@ -110,7 +124,7 @@ export const facebookTranslateScript = `
     if (messageWrapper.parentElement.querySelector('.fb-translator-container')) return;
 
     const config = getConfig();
-    const originalText = getMessageText(messageWrapper);
+    const originalText = getOwnTextContent(messageWrapper);
     if (!originalText) return;
 
     const msgId = hashText(originalText);
@@ -141,7 +155,8 @@ export const facebookTranslateScript = `
       resultDiv.textContent = '';
 
       try {
-        const response = await window.electronAPI.translateText(originalText, currentConfig.targetLanguage);
+        const response = await window.electronAPI.translateText(originalText, currentConfig.channel, currentConfig.targetLanguage);
+        console.log('翻译目标语言:', currentConfig.targetLanguage);
         resultDiv.textContent = response?.success ? response.translatedText : '翻译失败';
 
         if (response?.success) {
@@ -166,7 +181,8 @@ export const facebookTranslateScript = `
       const newLang = prompt('输入目标语言代码 (如 zh-CN, en, ja):', config.targetLanguage);
       if (newLang) {
         window.pluginConfig = window.pluginConfig || {};
-        window.pluginConfig.targetLanguage = newLang.trim();
+        window.pluginConfig.translation = window.pluginConfig.translation || {};
+        window.pluginConfig.translation.targetLanguage = newLang.trim();
         localStorage.setItem('facebookTranslationLanguage', newLang.trim());
       }
     };
@@ -174,8 +190,12 @@ export const facebookTranslateScript = `
     container.appendChild(btn);
     container.appendChild(resultDiv);
 
-    // 插入到 messageWrapper 后面，防止破坏层级
     messageWrapper.parentElement.appendChild(container);
+
+    // 新增自动翻译逻辑：如果启用自动翻译且无缓存，则自动触发翻译
+    if (config.autoTranslateReceive && !translationCache[msgId]) {
+      btn.click();
+    }
   }
 
   function initTranslator() {

@@ -313,7 +313,7 @@
 
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted,watch } from 'vue'
 import cloneDeep from 'lodash/cloneDeep'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -329,6 +329,11 @@ import { useStore } from 'vuex'
 const store = useStore()
 const { t } = useI18n()
 // Emits
+const props = defineProps({
+  showGlobalSettings: {
+    type: Boolean,
+  },
+})
 const emit = defineEmits(['save'])
 
 // 响应式数据
@@ -560,6 +565,32 @@ onMounted(async() => {
     }
   }
 })
+watch(
+  () => props.showGlobalSettings,
+  async(newshow) => {
+    if (newshow) {
+        if (window.electronAPI && window.electronAPI.loadSettings) {
+    try {
+      const diskSettings = await window.electronAPI.loadSettings()
+      Object.assign(settings, cloneDeep(diskSettings))
+    } catch (error) {
+      console.error('Failed to load settings from disk:', error)
+    }
+  } else {
+    // 没有 electron 环境就退回 localStorage
+    const savedSettings = localStorage.getItem('app-settings')
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings)
+        Object.assign(settings, cloneDeep(parsed))
+      } catch (error) {
+        console.error('Failed to load settings from localStorage:', error)
+      }
+    }
+  }
+    }
+  },
+)
 </script>
 
 <style scoped>

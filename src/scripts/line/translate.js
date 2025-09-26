@@ -3,8 +3,8 @@ export const lineTranslateScript = `
   console.log('[Line Translator] 脚本开始执行');
 
   const SELECTORS = {
-    MESSAGE_TEXT_WRAPPER: 'div.textMessageContent-module__content_wrap__238E1',
-    MESSAGE_TEXT: 'div.textMessageContent-module__content_wrap__238E1 pre span[data-is-message-text="true"]',
+    MESSAGE_TEXT_WRAPPER: 'div.textMessageContent-module__content_wrap__238E1:not(:has(.line-translator-container))',
+    MESSAGE_TEXT: 'div.textMessageContent-module__content_wrap__238E1 pre span[data-is-message-text="true"]'
   };
 
   const STYLES = \`
@@ -94,17 +94,29 @@ export const lineTranslateScript = `
     document.head.appendChild(styleElement);
   }
 
-  function getMessageText(wrapper) {
-    const span = wrapper.querySelector(SELECTORS.MESSAGE_TEXT);
-    if (!span) return '';
-    return span.textContent.trim();
+  function getOwnTextContent(element) {
+    let text = '';
+    element.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent;
+      } else if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        !node.classList.contains('time') &&
+        !node.classList.contains('line-translator-container')
+      ) {
+        text += node.textContent;
+      }
+    });
+    return text.trim();
   }
 
   function getConfig() {
     return {
-      targetLanguage: window.pluginConfig?.targetLanguage || 'zh-CN',
-      buttonText: window.pluginConfig?.buttonText || '🌐 翻译',
-      loadingText: window.pluginConfig?.loadingText || '翻译中...'
+      targetLanguage: window.pluginConfig?.translation?.targetLanguage || localStorage.getItem('lineTranslationLanguage') || 'zh-CN',
+      buttonText: window.pluginConfig?.translation?.buttonText || '🌐 翻译',
+      channel: window.pluginConfig?.translation.channel || 'google',
+      autoTranslateReceive: window.pluginConfig?.translation?.autoTranslateReceive || false,
+      loadingText: window.pluginConfig?.translation?.loadingText || '翻译中...'
     };
   }
 
@@ -113,7 +125,7 @@ export const lineTranslateScript = `
     if (messageWrapper.querySelector('.line-translator-container')) return;
 
     const config = getConfig();
-    const originalText = getMessageText(messageWrapper);
+    const originalText = getOwnTextContent(messageWrapper);
     if (!originalText) return;
 
     const msgId = hashText(originalText);
@@ -144,7 +156,8 @@ export const lineTranslateScript = `
       resultDiv.textContent = '';
 
       try {
-        const response = await window.electronAPI.translateText(originalText, currentConfig.targetLanguage);
+        const response = await window.electronAPI.translateText(originalText, currentConfig.channel, currentConfig.targetLanguage);
+        console.log('翻译目标语言:', currentConfig.targetLanguage);
         resultDiv.textContent = response?.success ? response.translatedText : '翻译失败';
 
         if (response?.success) {
@@ -169,7 +182,8 @@ export const lineTranslateScript = `
       const newLang = prompt('输入目标语言代码 (如 zh-CN, en, ja):', config.targetLanguage);
       if (newLang) {
         window.pluginConfig = window.pluginConfig || {};
-        window.pluginConfig.targetLanguage = newLang.trim();
+        window.pluginConfig.translation = window.pluginConfig.translation || {};
+        window.pluginConfig.translation.targetLanguage = newLang.trim();
         localStorage.setItem('lineTranslationLanguage', newLang.trim());
       }
     };
@@ -178,6 +192,11 @@ export const lineTranslateScript = `
     container.appendChild(resultDiv);
 
     messageWrapper.appendChild(container);
+
+    // 新增自动翻译逻辑：如果启用自动翻译且无缓存，则自动触发翻译
+    if (config.autoTranslateReceive && !translationCache[msgId]) {
+      btn.click();
+    }
   }
 
   function initTranslator() {

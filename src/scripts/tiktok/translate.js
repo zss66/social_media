@@ -3,8 +3,8 @@ export const tiktokTranslateScript = `
   console.log('[TikTok Translator] 脚本开始执行');
 
   const SELECTORS = {
-    MESSAGE_TEXT_CONTAINER: 'div.css-1ntk7ja-DivTextContainer.e9j91383',
-    MESSAGE_TEXT: 'div.css-1ntk7ja-DivTextContainer.e9j91383 > p.css-1rdxtjl-PText.e9j913815',
+    MESSAGE_TEXT_CONTAINER: 'div.css-1ntk7ja-DivTextContainer.e9j91383:not(:has(.tt-translator-container))',
+    MESSAGE_TEXT: 'div.css-1ntk7ja-DivTextContainer.e9j91383 > p.css-1rdxtjl-PText.e9j913815'
   };
 
   const STYLES = \`
@@ -94,16 +94,29 @@ export const tiktokTranslateScript = `
     document.head.appendChild(styleElement);
   }
 
-  function getMessageText(container) {
-    const p = container.querySelector(SELECTORS.MESSAGE_TEXT);
-    return p ? p.textContent.trim() : '';
+  function getOwnTextContent(element) {
+    let text = '';
+    element.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent;
+      } else if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        !node.classList.contains('time') &&
+        !node.classList.contains('tt-translator-container')
+      ) {
+        text += node.textContent;
+      }
+    });
+    return text.trim();
   }
 
   function getConfig() {
     return {
-      targetLanguage: window.pluginConfig?.targetLanguage || 'zh-CN',
-      buttonText: window.pluginConfig?.buttonText || '🌐 翻译',
-      loadingText: window.pluginConfig?.loadingText || '翻译中...'
+      targetLanguage: window.pluginConfig?.translation?.targetLanguage || localStorage.getItem('tiktokTranslationLanguage') || 'zh-CN',
+      buttonText: window.pluginConfig?.translation?.buttonText || '🌐 翻译',
+      channel: window.pluginConfig?.translation.channel || 'google',
+      autoTranslateReceive: window.pluginConfig?.translation?.autoTranslateReceive || false,
+      loadingText: window.pluginConfig?.translation?.loadingText || '翻译中...'
     };
   }
 
@@ -112,7 +125,7 @@ export const tiktokTranslateScript = `
     if (messageContainer.querySelector('.tt-translator-container')) return;
 
     const config = getConfig();
-    const originalText = getMessageText(messageContainer);
+    const originalText = getOwnTextContent(messageContainer);
     if (!originalText) return;
 
     const msgId = hashText(originalText);
@@ -143,7 +156,8 @@ export const tiktokTranslateScript = `
       resultDiv.textContent = '';
 
       try {
-        const response = await window.electronAPI.translateText(originalText, currentConfig.targetLanguage);
+        const response = await window.electronAPI.translateText(originalText, currentConfig.channel, currentConfig.targetLanguage);
+        console.log('翻译目标语言:', currentConfig.targetLanguage);
         resultDiv.textContent = response?.success ? response.translatedText : '翻译失败';
 
         if (response?.success) {
@@ -168,7 +182,8 @@ export const tiktokTranslateScript = `
       const newLang = prompt('输入目标语言代码 (如 zh-CN, en, ja):', config.targetLanguage);
       if (newLang) {
         window.pluginConfig = window.pluginConfig || {};
-        window.pluginConfig.targetLanguage = newLang.trim();
+        window.pluginConfig.translation = window.pluginConfig.translation || {};
+        window.pluginConfig.translation.targetLanguage = newLang.trim();
         localStorage.setItem('tiktokTranslationLanguage', newLang.trim());
       }
     };
@@ -177,6 +192,11 @@ export const tiktokTranslateScript = `
     container.appendChild(resultDiv);
 
     messageContainer.appendChild(container);
+
+    // 新增自动翻译逻辑：如果启用自动翻译且无缓存，则自动触发翻译
+    if (config.autoTranslateReceive && !translationCache[msgId]) {
+      btn.click();
+    }
   }
 
   function initTranslator() {

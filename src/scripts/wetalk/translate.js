@@ -1,9 +1,9 @@
 export const wetalkTranslateScript = `
 (function () {
-  console.log('[wetalk Translator] 脚本开始执行');
+  console.log('[WeTalk Translator] 脚本开始执行');
 
   const SELECTORS = {
-    MESSAGE_CONTAINER: 'span.message > div.d-flex > .right-message.wetalk-chatting-color'
+    MESSAGE_CONTAINER: 'span.message > div.d-flex > .right-message.wetalk-chatting-color:not(:has(.wt-translator-container))'
   };
 
   const STYLES = \`
@@ -15,7 +15,7 @@ export const wetalkTranslateScript = `
     .wt-translate-btn {
       font-size: 12px;
       cursor: pointer;
-      margin-bottom:10px;
+      margin-bottom: 10px;
       background: #25D366;
       color: white;
       border: none;
@@ -97,19 +97,38 @@ export const wetalkTranslateScript = `
     document.head.appendChild(style);
   }
 
+  function getOwnTextContent(element) {
+    let text = '';
+    element.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent;
+      } else if (
+        node.nodeType === Node.ELEMENT_NODE &&
+        !node.classList.contains('time') &&
+        !node.classList.contains('wt-translator-container')
+      ) {
+        text += node.textContent;
+      }
+    });
+    return text.trim();
+  }
+
   function getConfig() {
     return {
-      targetLanguage: localStorage.getItem('wetalkTranslationLanguage') || (window.pluginConfig?.targetLanguage || 'zh-CN'),
-      buttonText: window.pluginConfig?.buttonText || '🌐 翻译',
-      loadingText: window.pluginConfig?.loadingText || '翻译中...'
+      targetLanguage: window.pluginConfig?.translation?.targetLanguage || localStorage.getItem('wetalkTranslationLanguage') || 'zh-CN',
+      buttonText: window.pluginConfig?.translation?.buttonText || '🌐 翻译',
+      channel: window.pluginConfig?.translation.channel || 'google',
+      autoTranslateReceive: window.pluginConfig?.translation?.autoTranslateReceive || false,
+      loadingText: window.pluginConfig?.translation?.loadingText || '翻译中...'
     };
   }
 
-  function createTranslateButton(msgDiv, config) {
+  function createTranslateButton(msgDiv) {
     if (msgDiv.dataset.injected === 'true') return;
     msgDiv.dataset.injected = 'true';
 
-    const originalText = msgDiv.textContent.trim();
+    const config = getConfig();
+    const originalText = getOwnTextContent(msgDiv);
     if (!originalText) return;
 
     const msgId = hashText(originalText);
@@ -135,15 +154,16 @@ export const wetalkTranslateScript = `
     }
 
     btn.onclick = async () => {
+      const currentConfig = getConfig();
       btn.disabled = true;
-      btn.textContent = config.loadingText;
+      btn.textContent = currentConfig.loadingText;
       btn.style.background = '#999';
       resultDiv.style.display = 'block';
       resultDiv.textContent = '';
 
       try {
-        const response = await window.electronAPI.translateText(originalText, config.targetLanguage);
-        console.log('翻译目标语言:', config.targetLanguage);
+        const response = await window.electronAPI.translateText(originalText, currentConfig.channel, currentConfig.targetLanguage);
+        console.log('翻译目标语言:', currentConfig.targetLanguage);
         resultDiv.textContent = response?.success ? response.translatedText : '翻译失败';
 
         if (response?.success) {
@@ -151,7 +171,6 @@ export const wetalkTranslateScript = `
           cleanCache(translationCache);
           limitCacheSize(translationCache);
           saveCache(translationCache);
-
           btn.style.display = 'none';
         }
       } catch (err) {
@@ -159,7 +178,7 @@ export const wetalkTranslateScript = `
         console.error('翻译失败:', err);
       } finally {
         btn.disabled = false;
-        btn.textContent = config.buttonText;
+        btn.textContent = currentConfig.buttonText;
         btn.style.background = '#25D366';
       }
     };
@@ -168,8 +187,10 @@ export const wetalkTranslateScript = `
       e.preventDefault();
       const newLang = prompt('输入目标语言代码 (如 zh-CN, en, ja):', config.targetLanguage);
       if (newLang) {
-        config.targetLanguage = newLang.trim();
-        localStorage.setItem('wetalkTranslationLanguage', config.targetLanguage);
+        window.pluginConfig = window.pluginConfig || {};
+        window.pluginConfig.translation = window.pluginConfig.translation || {};
+        window.pluginConfig.translation.targetLanguage = newLang.trim();
+        localStorage.setItem('wetalkTranslationLanguage', newLang.trim());
       }
     };
 
@@ -188,12 +209,16 @@ export const wetalkTranslateScript = `
     container.appendChild(divider);
     container.appendChild(btn);
     container.appendChild(resultDiv);
+
+    // 新增自动翻译逻辑：如果启用自动翻译且无缓存，则自动触发翻译
+    if (config.autoTranslateReceive && !translationCache[msgId]) {
+      btn.click();
+    }
   }
 
   function enhanceMessages() {
-    const config = getConfig();
     const messages = document.querySelectorAll(SELECTORS.MESSAGE_CONTAINER);
-    messages.forEach(msg => createTranslateButton(msg, config));
+    messages.forEach(msg => createTranslateButton(msg));
   }
 
   function checkElectronAPI() {
@@ -212,7 +237,6 @@ export const wetalkTranslateScript = `
     checkElectronAPI();
   }
 })();
-
 
 
 `;

@@ -12,34 +12,36 @@
           <el-icon><CircleCheck /></el-icon>
           {{ getStatusText(container.status) }}
         </div>
-         <el-tooltip content="后退">
-      <el-button
-        :disabled="!canGoBack"
-        @click="goBack"
-        icon="ArrowLeft"  
-        circle
-        size="small"
-      />
-    </el-tooltip>
+        <div style="margin: 0 5px; min-width: fit-content">
+          <el-tooltip content="后退">
+            <el-button
+              :disabled="!canGoBack"
+              @click="goBack"
+              icon="ArrowLeft"
+              circle
+              size="small"
+            />
+          </el-tooltip>
 
-    <el-tooltip content="前进">
-      <el-button
-        :disabled="!canGoForward"
-        @click="goForward"
-        icon="ArrowRight"
-        circle
-        size="small"
-      />
-    </el-tooltip>
+          <el-tooltip content="前进">
+            <el-button
+              :disabled="!canGoForward"
+              @click="goForward"
+              icon="ArrowRight"
+              circle
+              size="small"
+            />
+          </el-tooltip>
 
-    <el-tooltip content="刷新页面">
-      <el-button
-        @click="reload"
-        icon="RefreshRight"
-        circle
-        size="small"
-      />
-    </el-tooltip>
+          <el-tooltip content="刷新页面">
+            <el-button
+              @click="reload"
+              icon="RefreshRight"
+              circle
+              size="small"
+            />
+          </el-tooltip>
+        </div>
       </div>
 
       <div class="toolbar-right">
@@ -67,7 +69,7 @@
         <el-tooltip content="代理配置验证">
           <el-button
             @click="proxyDiagnosticToolVisible = true"
-            :icon="Refresh"
+            :icon="Connection"
             circle
             size="small"
             :disabled="isSleeping"
@@ -101,6 +103,14 @@
             circle
             size="small"
             :disabled="isSleeping"
+          />
+        </el-tooltip>
+        <el-tooltip content="工具侧边栏">
+          <el-button
+            @click="showSidebar = !showSidebar"
+            :icon="showSidebar ? 'Close' : 'Menu'"
+            circle
+            size="small"
           />
         </el-tooltip>
 
@@ -170,165 +180,99 @@
           />
         </div>
       </div>
-      <div id="mainbox" ></div>
       <!-- 网页容器 -->
       <div class="webview-container" v-show="!isSleeping && !isRebuilding">
         <!-- 加载失败的内容展示 -->
         <div class="webviewError" v-if="isWebviewError">
-          <img src="/assets/images/webError.png">
+          <img src="/assets/images/webError.png" />
           加载容器失败，请检查网络连接或容器状态
         </div>
         <!-- webview区域 -->
-        <webview
-          v-if="showWebview"
-          ref="webviewRef"
-          :id="`webview_${container.id}`"
-          :key="webviewKey"
-          :src="`${container.url}?platform=${container.platformId}&containerId=${container.id}`"
-          :useragent="container.config.fingerprint.userAgent"
-          :partition="`persist:container_${container.id}`"
-          
-          :preload="preloadpath"
-          
-          allowpopups
-          webpreferences="webSecurity=false,nodeintegration=true allowRunningInsecureContent, contextIsolation=false"
-           @did-navigate="onNavigate"
-      @did-navigate-in-page="onNavigate"
-          @dom-ready="handleWebviewReady"
-          @did-finish-load="handleWebviewLoaded"
-          @new-window="handleNewWindow"
-          @did-fail-load="handleWebviewError"
-          @destroyed="onWebviewDestroyed"
-          @console-message="handleConsoleMessage"
-        />
-      
-      </div>
-
-      <!-- 加载状态 -->
-      <div
-        v-if="!showWebview && !isSleeping && !isRebuilding"
-        class="loading-container"
-      >
-        <el-loading-directive
-          text="正在加载容器..."
-          spinner="el-icon-loading"
-          background="rgba(0, 0, 0, 0.8)"
-        />
-      </div>
-    </div>
-
-    <!-- 浮动工具栏 -->
-    <div
-      class="floating-toolbar"
-      v-if="showWebview && container.features && !isSleeping"
-    >
-      <!-- 翻译工具 -->
-      <div
-        v-if="container.features.translation"
-        class="feature-panel translation-panel"
-      >
-        <el-tooltip content="选择翻译语言">
-          <el-button
-            @click="translateSelectedText"
-            :icon="ChatDotRound"
-            type="primary"
-            circle
-            :loading="translating"
-          />
-        </el-tooltip>
-
-        <el-dropdown @command="handleTranslationLanguage" trigger="click">
-          <el-button size="small" link>
-            {{ pluginConfig.targetLanguage }}
-            <el-icon><ArrowDown /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="en">英语</el-dropdown-item>
-              <el-dropdown-item command="zh">中文</el-dropdown-item>
-              <el-dropdown-item command="ja">日语</el-dropdown-item>
-              <el-dropdown-item command="ko">韩语</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </div>
-
-      <!-- 自动回复工具 -->
-      <div
-        v-if="container.features.autoReply"
-        class="feature-panel auto-reply-panel"
-      >
-        <el-tooltip
-          :content="autoReplyEnabled ? '关闭自动回复' : '开启自动回复'"
+        <div
+          style="
+            display: flex;
+            height: 100%;
+            overflow: hidden;
+            align-items: stretch;
+          "
         >
-          <el-button
-            @click="toggleAutoReply"
-            :icon="ChatLineRound"
-            :type="autoReplyEnabled ? 'success' : 'info'"
-            circle
+          <!-- 添加 overflow: hidden; 防止横向溢出 -->
+          <webview
+            v-if="showWebview"
+            ref="webviewRef"
+            :id="`webview_${container.id}`"
+            :key="webviewKey"
+            :src="`${container.url}?platform=${container.platformId}&containerId=${container.id}`"
+            :useragent="container.config.fingerprint.userAgent"
+            :partition="`persist:container_${container.id}`"
+            :preload="preloadpath"
+            allowpopups
+            webpreferences="webSecurity=false,nodeintegration=true allowRunningInsecureContent, contextIsolation=false"
+            @did-navigate="onNavigate"
+            @did-navigate-in-page="onNavigate"
+            @dom-ready="handleWebviewReady"
+            @did-finish-load="handleWebviewLoaded"
+            @new-window="handleNewWindow"
+            @did-fail-load="handleWebviewError"
+            @destroyed="onWebviewDestroyed"
+            @console-message="handleConsoleMessage"
+            style="flex: 1; height: 100%"
           />
-        </el-tooltip>
+          <Tool_sidebar
+            v-if="showWebview && showSidebar"
+            :default-settings="pluginConfig"
+            @sendtext="handleSendText"
+            @save="handleSaveSidebarSettings"
+            @close="showSidebar = false"
+            style="flex-shrink: 0"
+          />
+        </div>
 
-        <el-badge
-          v-if="autoReplyCount > 0"
-          :value="autoReplyCount"
-          class="reply-count-badge"
+        <!-- 加载状态 -->
+        <div
+          v-if="!showWebview && !isSleeping && !isRebuilding"
+          class="loading-container"
+        >
+          <el-loading-directive
+            text="正在加载容器..."
+            spinner="el-icon-loading"
+            background="rgba(0, 0, 0, 0.8)"
+          />
+        </div>
+      </div>
+
+      <!-- 容器设置弹窗 -->
+      <el-dialog v-model="showSettings" title="容器设置" width="600px">
+        <ContainerSettings
+          :showSettings="showSettings"
+          :container="container"
+          @save="handleSaveSettings"
+          @cancel="handlecancleSettings"
         />
-      </div>
-
-      <!-- 快捷消息 -->
-      <!-- <div class="feature-panel quick-message-panel">
-        <el-dropdown @command="sendQuickMessage" trigger="click">
-          <div>
-            <el-button :icon="ChatRound" type="warning" circle />
-            <el-text type="primary">快捷回复</el-text>
-          </div>
-
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="hello">👋 你好</el-dropdown-item>
-              <el-dropdown-item command="thanks">🙏 谢谢</el-dropdown-item>
-              <el-dropdown-item command="ok">👍 好的</el-dropdown-item>
-              <el-dropdown-item command="busy"
-                >⏰ 我现在有点忙</el-dropdown-item
-              >
-              <el-dropdown-item command="later">🕐 稍后联系</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </div> -->
+      </el-dialog>
+      <el-dialog
+        v-model="proxyDiagnosticToolVisible"
+        title="代理诊断工具"
+        width="600px"
+        @close="handleCloseProxyDiagnosticTool"
+      >
+        <ProxyDiagnosticTool :container="container" />
+      </el-dialog>
     </div>
-
-    <!-- 翻译结果弹窗 -->
-    <el-dialog v-model="showTranslationResult" title="翻译结果" width="500px">
-      <div class="translation-result">
-        <div class="original-text">
-          <h4>原文：</h4>
-          <p>{{ selectedText }}</p>
-        </div>
-        <div class="translated-text">
-          <h4>译文：</h4>
-          <p>{{ translatedText }}</p>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="showTranslationResult = false">关闭</el-button>
-        <el-button @click="copyTranslation" type="primary">复制译文</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 容器设置弹窗 -->
-    <el-dialog v-model="showSettings" title="容器设置" width="600px">
-      <ContainerSettings :showSettings="showSettings"  :container="container" @save="handleSaveSettings" @cancel="handlecancleSettings" />
-    </el-dialog>
-    <el-dialog v-model="proxyDiagnosticToolVisible" title="代理诊断工具" width="600px" @close="handleCloseProxyDiagnosticTool">
-      <ProxyDiagnosticTool :container="container"  />
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch,reactive } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  onUnmounted,
+  nextTick,
+  watch,
+  reactive,
+} from "vue";
+import { debounce, cloneDeep } from "lodash-es"; // 🔥 新增：import debounce（需 yarn add lodash-es 或类似）
 import { ElMessage } from "element-plus";
 import {
   CircleCheck,
@@ -338,10 +282,7 @@ import {
   VideoPause,
   Camera,
   Setting,
-  ChatDotRound,
-  ChatLineRound,
-  ChatRound,
-  ArrowDown,
+  Connection,
   Delete,
   Loading,
 } from "@element-plus/icons-vue";
@@ -349,6 +290,7 @@ import ContainerSettings from "./ContainerSettings.vue";
 import ProxyDiagnosticTool from "./ProxyDiagnosticTool.vue";
 import { useStore } from "vuex";
 import { injectFeatures } from "@/utils/injector.js";
+import Tool_sidebar from "./Tool_sidebar.vue";
 
 const store = useStore();
 
@@ -364,7 +306,11 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(["update-container", "update-isreload", "focus-container"]);
+const emit = defineEmits([
+  "update-container",
+  "update-isreload",
+  "focus-container",
+]);
 
 // 响应式数据
 const webviewRef = ref();
@@ -375,11 +321,12 @@ const showTranslationResult = ref(false);
 const translating = ref(false);
 const selectedText = ref("");
 const translatedText = ref("");
-const canGoBack = ref(false)
-const canGoForward = ref(false)
+const canGoBack = ref(false);
+const canGoForward = ref(false);
 const autoReplyEnabled = ref(false);
 const autoReplyCount = ref(0);
-const isWebviewError = ref(false)//是否加载失败？
+const isWebviewError = ref(false); //是否加载失败？
+const showSidebar = ref(false);
 // 休眠重建相关状态
 const isDestroying = ref(false);
 const isRebuilding = ref(false);
@@ -388,8 +335,34 @@ const rebuildProgress = ref(0);
 const lastSleepData = ref(null);
 const preloadpath = ref("");
 const linepreloadpath = ref("");
-const proxyDiagnosticToolVisible = ref(false);// 计算属性
+const proxyDiagnosticToolVisible = ref(false); // 计算属性
 const isSleeping = computed(() => props.container?.status === "sleeping");
+
+// 🔥 新增：操作互斥状态（防止快速点击重叠）
+const isOperating = ref(false);
+
+// 🔥 新增：获取 preload 路径的独立函数（可复用，确保每次重建刷新）
+const fetchPreloadPath = async () => {
+  try {
+    const result = await window.electronAPI?.getPreloadPath();
+    if (result) {
+      let path = result.preloadPath || "";
+      if (path) {
+        // 确保 Windows 路径用 /，并加 file://
+        path = path.replace(/\\/g, "/");
+        if (!path.startsWith("file://")) {
+          path = `file://${path}`;
+        }
+        preloadpath.value = path;
+        console.log("[UI] Preload path updated:", preloadpath.value); // 调试日志
+      }
+      linepreloadpath.value = result.linepreloadPath || "";
+    }
+  } catch (error) {
+    console.error("[UI] Fetch preload path failed:", error);
+    preloadpath.value = ""; // Fallback 为空，避免无效路径
+  }
+};
 
 const getStatusText = (status) => {
   const statusMap = {
@@ -403,89 +376,192 @@ const getStatusText = (status) => {
   return statusMap[status] || "未知";
 };
 const pluginConfig = reactive({
-  targetLanguage: '英文', // 默认中文
-  buttonText: '🌐 翻译',
-  loadingText: '翻译中...',
-})
+  // 新增：翻译设置（从 Tool_sidebar 映射）
+  translation: {
+    independentConfig: true,
+    buttonText: "🌐 翻译",
+    loadingText: "翻译中...",
+
+    autoTranslateReceive: false,
+    autoTranslateSend: true,
+    channel: "google",
+    targetLanguage: "en",
+    sourceLanguage: "zh-CN",
+    preview: false,
+    autoVoice: false,
+  },
+
+  // 新增：代理设置
+  proxy: {
+    enabled: false,
+    type: "http",
+    host: "127.0.0.1",
+    port: 8080,
+  },
+
+  // 新增：群发设置
+  broadcast: {
+    enabled: false,
+    interval: 5,
+    content: "",
+  },
+
+  // 新增：快速回复设置
+  quickReply: {
+    categories: [
+      { name: "常用问候", editing: false, replies: [{ text: "你好！" }] },
+      // ... 更多默认
+    ],
+    selectedCategory: 0,
+  },
+
+  // 新增：个人画像设置
+  profile: {
+    basic_info: { name: "", gender: "" /* ... 其他字段 */ },
+    interests: ["编程"],
+    behavior: { dialogue_style: "casual" /* ... */ },
+    needs_and_painpoints: ["提高效率"],
+    dynamic_tags: [
+      { tag: "技术爱好者", category: "interest", confidence: 0.9 },
+    ],
+  },
+
+  // 新增：系统设置（analytics 是只读，不需配置）
+  settings: {
+    autoStart: false,
+    minimizeToTray: true,
+    notification: true,
+    theme: "auto",
+  },
+});
 
 function updateNavState() {
-  const webview = webviewRef.value
-  if (!webview) return
-  canGoBack.value = webview.canGoBack()
-  canGoForward.value = webview.canGoForward()
+  const webview = webviewRef.value;
+  if (!webview) return;
+  canGoBack.value = webview.canGoBack();
+  canGoForward.value = webview.canGoForward();
 }
 
 function goBack() {
-  const webview = webviewRef.value
+  const webview = webviewRef.value;
   if (webview && webview.canGoBack()) {
-    webview.goBack()
+    webview.goBack();
   }
 }
 
 function goForward() {
-  const webview = webviewRef.value
+  const webview = webviewRef.value;
   if (webview && webview.canGoForward()) {
-    webview.goForward()
+    webview.goForward();
   }
 }
 
 function reload() {
-  const webview = webviewRef.value
-  isWebviewError.value = false
+  const webview = webviewRef.value;
+  isWebviewError.value = false;
   if (webview) {
-    webview.reload()
+    webview.reload();
   }
 }
 
 function onNavigate() {
-  updateNavState()
+  updateNavState();
 }
-
-
+const getFunctionTitle = (func) => {
+  const titleMap = {
+    translation: "翻译",
+    proxy: "代理",
+    broadcast: "群发",
+    quickReply: "快速回复",
+    profile: "个人画像",
+    settings: "系统",
+  };
+  return titleMap[func] || "未知";
+};
 function updatePluginConfig(webview, newConfig) {
   if (!webview) return;
   const configUpdateCode = `
-    window.postMessage({ type: 'updatePluginConfig', payload: ${JSON.stringify(newConfig)} }, '*');
+    window.postMessage({ 
+      type: 'updatePluginConfig',  // 新消息类型，扩展原有
+      payload: ${JSON.stringify(newConfig)} 
+    }, '*');
   `;
   webview.executeJavaScript(configUpdateCode).catch(console.error);
 }
 // 监听 pluginConfig 的变化，使用 deep: true
-watch(pluginConfig, (newVal, oldVal) => {
-  console.log('pluginConfig 改变了:', newVal)
-  updatePluginConfig(webviewRef.value,newVal)
-}, { deep: true })
+watch(
+  pluginConfig,
+  (newVal) => {
+    console.log("pluginConfig 变化:", newVal);
+    updatePluginConfig(webviewRef.value, newVal);
+  },
+  { deep: true }
+);
 
-// 监听容器状态变化
+// 🔥 优化：监听容器状态变化 - 移除 sleeping -> active 自动重建（移到 wakeContainer 顺序处理，避免 race）
 watch(
   () => props.container?.status,
   async (newStatus, oldStatus) => {
-    
-    // showTranslationResult.value=newTrans;
-    // autoReplyEnabled.value = newReply;
     if (oldStatus === "ready" && newStatus === "loading" && props.isreload) {
-      webviewRef.value.reload();
+      webviewRef.value?.reload();
     }
-    
-    if (oldStatus === "sleeping" && newStatus === "active") {
-      // 从休眠唤醒，需要重建webview
-    
-  
-      await rebuildWebviewDOM();
-    }
+    // 🔥 移除：if (oldStatus === "sleeping" && newStatus === "active") { await rebuildWebviewDOM(); }
+    // 现在由 wakeContainer 串行处理
   },
-  { immediate: true }
+  { immediate: true, flush: "post" } // 🔥 优化：post 确保更新后执行
 );
 
 const handleCloseProxyDiagnosticTool = () => {
   proxyDiagnosticToolVisible.value = false;
 };
 const handleWebviewError = (event) => {
-  isWebviewError.value = true
-  console.error("Webview load error:", event);
-  ElMessage.error("加载容器失败，请检查网络连接或容器状态");
+  console.log("Webview load error event:", event);
+
+  // 忽略非主框架的加载失败
+  if (!event.isMainFrame) {
+    console.log("忽略子资源加载失败:", event.validatedURL);
+    return;
+  }
+
+  // 忽略 Telegram ping 请求的失败
+  if (
+    event.validatedURL &&
+    (event.validatedURL.includes("/k/ping/") ||
+      event.validatedURL.includes("/ping/") ||
+      event.validatedURL.includes(".nocache"))
+  ) {
+    console.log("忽略 Telegram ping 请求失败:", event.validatedURL);
+    return;
+  }
+
+  // 忽略一些常见的非关键错误
+  const ignoredErrorCodes = [-3, -2]; // -3: 通常是网络超时, -2: 是文件未找到但不影响主要功能
+  if (ignoredErrorCodes.includes(event.errorCode)) {
+    console.log("忽略非关键错误:", event.errorCode, event.validatedURL);
+    return;
+  }
+
+  // 只有主框架的严重错误才设置错误状态
+  const criticalErrorCodes = [-6, -105, -106, -102, -118]; // 网络相关的严重错误
+  if (criticalErrorCodes.includes(event.errorCode)) {
+    isWebviewError.value = true;
+    console.error("严重的页面加载错误:", event);
+    ElMessage.error(
+      `加载容器失败: ${event.errorDescription || "网络连接错误"}`
+    );
+  } else {
+    // 其他错误只记录日志，不影响UI
+    console.warn("页面加载警告:", {
+      errorCode: event.errorCode,
+      url: event.validatedURL,
+      description: event.errorDescription,
+    });
+  }
 };
-// webview DOM重建
+
+// 🔥 优化：webview DOM重建 - 添加路径验证和延迟，确保稳定
 const rebuildWebviewDOM = async () => {
+  console.log("[UI] Starting rebuildWebviewDOM"); // 调试
   isRebuilding.value = true;
   rebuildStep.value = "准备重建容器DOM...";
   rebuildProgress.value = 20;
@@ -499,14 +575,26 @@ const rebuildWebviewDOM = async () => {
   rebuildStep.value = "创建新的浏览器实例...";
   rebuildProgress.value = 60;
 
-  // showWebview.value = true;
+  // 🔥 新增：重建后验证 preload 路径（防护）
+  if (!preloadpath.value || !preloadpath.value.startsWith("file://")) {
+    console.warn("[UI] Invalid preload path, refetching...");
+    await fetchPreloadPath();
+  }
+  console.log("[UI] Final preload path for rebuild:", preloadpath.value); // 调试
+
+  // 🔥 新增：短暂延迟，确保 DOM 稳定（避免 Electron 加载中断）
+  await new Promise((resolve) => setTimeout(resolve, 200)); // 优化：增至 200ms
 };
 
-// 休眠操作 - 销毁webview
+// 🔥 优化：休眠操作 - 添加互斥检查和日志
 const sleepContainer = async () => {
-  if (!props.container?.id) return;
+  if (!props.container?.id || isOperating.value || isRebuilding.value) {
+    console.warn("[UI] Sleep skipped: operating or rebuilding"); // 调试
+    return;
+  }
 
-  console.log("[UI] Destroying container:", props.container.id);
+  console.log("[UI] Sleep started"); // 调试
+  isOperating.value = true;
   isDestroying.value = true;
 
   try {
@@ -543,44 +631,86 @@ const sleepContainer = async () => {
     showWebview.value = true; // 失败时恢复显示
   } finally {
     isDestroying.value = false;
+    isOperating.value = false;
+    console.log("[UI] Sleep stopped"); // 调试
   }
 };
 
-// 唤醒操作 - 重建webview
+// 🔥 优化：唤醒操作 - 添加互斥、超时重置和日志（串行执行，避免 race）
 const wakeContainer = async () => {
-  if (!props.container?.id) return;
+  if (!props.container?.id || isOperating.value || isDestroying.value) {
+    console.warn("[UI] Wake skipped: operating or destroying"); // 调试
+    return;
+  }
 
-  console.log("[UI] Rebuilding container:", props.container.id);
+  console.log("[UI] Wake started"); // 调试
+  isOperating.value = true;
   isRebuilding.value = true;
   rebuildStep.value = "准备唤醒容器...";
   rebuildProgress.value = 10;
 
+  // 🔥 新增：超时重置（10s 后强制停止，防止卡死）
+  const timeoutId = setTimeout(() => {
+    if (isRebuilding.value) {
+      console.warn("[UI] Wake timeout, forcing reset");
+      isRebuilding.value = false;
+      isOperating.value = false;
+      rebuildStep.value = "";
+      rebuildProgress.value = 0;
+      ElMessage.error("重建超时，请重试");
+    }
+  }, 10000);
+
   try {
-    // 调用store唤醒容器
+    // 1. 先唤醒（主进程重建 session、恢复数据）
     await store.dispatch("containers/wakeContainer", props.container.id);
 
     rebuildStep.value = "容器配置已恢复...";
+    rebuildProgress.value = 60;
+
+    // 🔥 新增：重建前重新获取 preload 路径（确保最新）
+    await fetchPreloadPath();
+
+    // 2. 强制重建 webview DOM
+    await rebuildWebviewDOM();
+
+    // 3. 等待 DOM 更新后显示（确保 preload 注入）
+    await nextTick();
+    showWebview.value = true;
+    console.log("[UI] showWebview set to true after rebuild"); // 调试
+
+    rebuildStep.value = "正在加载 Webview...";
     rebuildProgress.value = 80;
-    isRebuilding.value = true;
-    showWebview.value = true
-   
+
+    // 4. 加载完成后关闭覆盖层（在 handleWebviewLoaded 中处理）
   } catch (error) {
     console.error("Wake container failed:", error);
     ElMessage.error(`唤醒失败: ${error.message}`);
+    isRebuilding.value = false;
+    rebuildStep.value = "";
+    rebuildProgress.value = 0;
   } finally {
-    // 注意：isRebuilding 会在 handleWebviewLoaded 中设置为 false
+    clearTimeout(timeoutId); // 清理超时
+    isOperating.value = false;
+    // 注意：isRebuilding 在 handleWebviewLoaded 中设 false（或超时已设）
+    console.log("[UI] Wake stopped"); // 调试
   }
 };
 
-// webview 事件处理
+// 🔥 优化：防抖版本（模板中按钮 @click 用这些）
+const debouncedSleep = debounce(sleepContainer, 500); // 500ms 防抖
+const debouncedWake = debounce(wakeContainer, 500); // 500ms 防抖
+
+// 🔥 优化：webview 事件处理 - 添加 ref 检查和日志
 const handleWebviewReady = async () => {
-  console.log("Webview DOM 加载完成");
-  console.log(webviewRef.value);
-  updateNavState()
+  if (!webviewRef.value) return; // 🔥 新增：防护检查
+  console.log("Webview DOM 加载完成"); // 调试
+  console.log("Webview ref:", webviewRef.value);
+  updateNavState();
   emit("update-container", props.container.id, { status: "ready" });
 
   // 注册webview到主进程
-  if (webviewRef.value && props.container?.id) {
+  if (props.container?.id) {
     try {
       const webContentsId = webviewRef.value.getWebContentsId();
       if (window.electronAPI?.registerContainerWebview) {
@@ -590,66 +720,33 @@ const handleWebviewReady = async () => {
         );
         console.log(
           `[UI] Registered webview for container ${props.container.id}`
-        );
+        ); // 调试
       }
     } catch (error) {
-      console.error("Failed to register webview:", error);
+      console.error("Register webview failed:", error);
     }
   }
 
-  // 如果是重建过程，执行恢复流程
-  if (isRebuilding.value) {
-    rebuildStep.value = "恢复浏览器数据...";
-    rebuildProgress.value = 90;
+  // 🔥 优化：恢复数据（移到 ready 后，确保稳定）
+  await restoreWebviewData();
 
-    try {
-      await restoreWebviewData();
-      rebuildProgress.value = 95;
-
-      // 注入自定义脚本
-      await nextTick();
-      const result = await window.electronAPI?.getPreloadPath();
-if (result) {
-  preloadpath.value = result.preloadPath || '';
-  linepreloadpath.value = result.linepreloadPath || '';
-}
+  // 注入自定义脚本
+  setTimeout(() => {
+    if (webviewRef.value) {
+      // 🔥 防护：检查 ref
       injectFeatures(
         webviewRef.value,
         props.container.platform.id, // 比如 'whatsapp'
         props.container.features || ["translation"],
         pluginConfig
       );
-
-      rebuildProgress.value = 100;
-      rebuildStep.value = "重建完成";
-
-      // 延迟关闭重建状态，确保所有操作完成
-      setTimeout(() => {
-        isRebuilding.value = false;
-        rebuildStep.value = "";
-        rebuildProgress.value = 0;
-      }, 500);
-    } catch (error) {
-      console.error("Rebuild failed:", error);
-      isRebuilding.value = false;
-      ElMessage.error("容器重建失败");
+      console.log("容器插件注入完成", props.container.platform.id);
     }
-  }
-  // emit("webviewRef", webviewRef.value);
-  // 注入自定义脚本
-  setTimeout(() => {
-    injectFeatures(
-      webviewRef.value,
-      props.container.platform.id, // 比如 'whatsapp'
-      props.container.features || ["translation"],
-     pluginConfig
-    );
-    console.log("container", props.container);
   }, 1000);
 };
 
-
 const handleWebviewLoaded = () => {
+  if (!webviewRef.value) return; // 🔥 新增：防护检查
   console.log("Webview loaded");
   showWebview.value = true;
 
@@ -666,9 +763,12 @@ const handleWebviewLoaded = () => {
   }
 };
 
-// 恢复webview数据
+// 🔥 优化：恢复webview数据 - 添加日志和错误处理
 const restoreWebviewData = async () => {
-  if (!webviewRef.value || !props.container?.id) return false;
+  if (!webviewRef.value || !props.container?.id) {
+    console.warn("[UI] Skip restore: no webview or container ID");
+    return false;
+  }
 
   try {
     // 1. 从主进程获取恢复数据
@@ -685,6 +785,8 @@ const restoreWebviewData = async () => {
       sessionStorage: sessionData,
       pageState,
     } = restoreData.data;
+
+    console.log("[UI] Starting data restore..."); // 调试
 
     // 2. 注入恢复脚本并等待完成
     const restoreScript = `
@@ -739,6 +841,7 @@ const restoreWebviewData = async () => {
         .catch(console.warn);
     }
 
+    console.log("[UI] Data restore completed"); // 调试
     return true;
   } catch (error) {
     console.error("Restore failed:", error);
@@ -749,22 +852,24 @@ const restoreWebviewData = async () => {
 const onWebviewDestroyed = async () => {
   console.log("Webview destroyed");
   if (props.container?.id && window.electronAPI?.unregisterContainerWebview) {
-    await window.electronAPI.unregisterContainerWebview(props.container.id);
-    console.log(
-      `[UI] Unregistered webview for container ${props.container.id}`
-    );
+    try {
+      await window.electronAPI.unregisterContainerWebview(props.container.id);
+      console.log(
+        `[UI] Unregistered webview for container ${props.container.id}`
+      );
+    } catch (error) {
+      console.error("Unregister failed:", error);
+    }
   }
 };
 
 const handleConsoleMessage = (event) => {
-  console.log('Webview console:', event.message)
+  console.log("Webview console:", event.message);
 };
-
-// 注入自定义脚本
 
 // 其他原有方法保持不变
 const reloadContainer = () => {
-  isWebviewError.value = false
+  isWebviewError.value = false;
   if (webviewRef.value && !isSleeping.value) {
     emit("update-container", props.container.id, { status: "loading" });
     webviewRef.value.reload();
@@ -804,109 +909,6 @@ const takeScreenshot = async () => {
   }
 };
 
-const translateSelectedText = async () => {
-  if (!selectedText.value) {
-    ElMessage.warning("请先选择要翻译的文本");
-    return;
-  }
-
-  translating.value = true;
-  try {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    translatedText.value = `[模拟翻译] ${selectedText.value}`;
-    showTranslationResult.value = true;
-  } catch (error) {
-    ElMessage.error("翻译失败");
-  } finally {
-    translating.value = false;
-  }
-};
-
-const handleTranslationLanguage = (lang) => {
-  const langMap = {
-    en: "英语",
-    zh: "中文",
-    ja: "日语",
-    ko: "韩语",
-  };
-  pluginConfig.targetLanguage = langMap[lang];
-  ElMessage.info(`翻译语言已切换为${langMap[lang]}`);
-};
-
-const copyTranslation = () => {
-  navigator.clipboard.writeText(translatedText.value);
-  ElMessage.success("译文已复制到剪贴板");
-};
-
-const toggleAutoReply = () => {
-  autoReplyEnabled.value = !autoReplyEnabled.value;
-  const status = autoReplyEnabled.value ? "开启" : "关闭";
-  ElMessage.info(`自动回复已${status}`);
-};
-
-const sendQuickMessage = (command) => {
-  if (isSleeping.value) {
-    ElMessage.warning("容器休眠中，无法发送消息");
-    return;
-  }
-
-  const messages = {
-    hello: "你好",
-    thanks: "谢谢",
-    ok: "好的",
-    busy: "我现在有点忙，稍后联系",
-    later: "稍后联系",
-  };
-
-  const message = messages[command];
-  if (message && webviewRef.value) {
-    const sendScript = `
-      (function() {
-        const inputSelectors = [
-          '[data-testid="conversation-compose-box-input"]',
-          '.input-container textarea',
-          '#main footer [contenteditable="true"]',
-          '[contenteditable="true"]'
-        ];
-        
-        let input = null;
-        for (const selector of inputSelectors) {
-          input = document.querySelector(selector);
-          if (input) break;
-        }
-        
-        if (input) {
-          input.focus();
-          input.textContent = '${message}';
-          
-          const event = new Event('input', { bubbles: true });
-          input.dispatchEvent(event);
-          
-          setTimeout(() => {
-            const sendSelectors = [
-              '[data-testid="send-button"]',
-              '.send-button',
-              '[aria-label*="发送"]',
-              'button[type="submit"]'
-            ];
-            
-            for (const selector of sendSelectors) {
-              const sendBtn = document.querySelector(selector);
-              if (sendBtn && !sendBtn.disabled) {
-                sendBtn.click();
-                break;
-              }
-            }
-          }, 100);
-        }
-      })();
-    `;
-
-    webviewRef.value.executeJavaScript(sendScript);
-    ElMessage.success(`已发送快捷消息: ${message}`);
-  }
-};
-
 const handleSaveSettings = (settings) => {
   console.log("Saving container settings:", settings);
   emit("update-container", props.container.id, { config: settings });
@@ -915,7 +917,6 @@ const handleSaveSettings = (settings) => {
 };
 const handlecancleSettings = () => {
   showSettings.value = false;
-  
 };
 
 const handleNewWindow = (event) => {
@@ -923,138 +924,174 @@ const handleNewWindow = (event) => {
   // 可以在这里处理新窗口打开逻辑
 };
 
-// 监听webview消息
-const handleWebviewMessage = (event) => {
-  const { data } = event;
-
-  if (data.type === "translate") {
-    selectedText.value = data.text;
-    translateSelectedText();
-  } else if (data.type === "newMessage" && autoReplyEnabled.value) {
-    setTimeout(() => {
-      if (props.container.config?.autoReplyMessage) {
-        sendQuickMessage("custom");
-        autoReplyCount.value++;
-      }
-    }, (props.container.config?.autoReplyDelay || 3) * 1000);
-  }
-};
 // 🔥 新增：处理通知点击的方法
 const handleNotificationClick = (data) => {
-  console.log('[Container] Processing notification click:', data);
-  
+  console.log("[Container] Processing notification click:", data);
+
   const { metadata } = data;
   if (!metadata) return;
-  
+
   // 检查是否是当前容器的通知
   if (metadata.containerId === props.container.id) {
     console.log(`[Container] 聚焦到容器: ${props.container.name}`);
-    
+
     // 1. 如果容器在休眠状态，先唤醒
     if (isSleeping.value) {
-      console.log('[Container] 容器在休眠中，正在唤醒...');
-      wakeContainer();
+      console.log("[Container] 容器在休眠中，正在唤醒...");
+      debouncedWake(); // 🔥 用防抖版本
       return; // 唤醒后会自动显示webview
     }
-    
+
     // 2. 确保webview可见
     if (!showWebview.value) {
       showWebview.value = true;
     }
-    
+
     // 3. 聚焦到webview（延迟执行确保DOM已更新）
     nextTick(() => {
       if (webviewRef.value) {
         try {
           // 聚焦webview
           webviewRef.value.focus();
-          console.log('[Container] Webview 已聚焦');
-          
+          console.log("[Container] Webview 已聚焦");
+
           // 可选：滚动到相关消息（如果平台支持）
           scrollToMessage(metadata);
-          
         } catch (error) {
-          console.error('[Container] 聚焦webview失败:', error);
+          console.error("[Container] 聚焦webview失败:", error);
         }
       }
     });
-    
+
     // 4. 发出事件给父组件，让它切换到当前标签
-    emit('focus-container', props.container.id);
-    
+    emit("focus-container", props.container.id);
   } else {
-    console.log(`[Container] 通知不属于当前容器 (${metadata.containerId} !== ${props.container.id})`);
+    console.log(
+      `[Container] 通知不属于当前容器 (${metadata.containerId} !== ${props.container.id})`
+    );
   }
 };
 
 // 🔥 新增：滚动到相关消息（可选功能）
 const scrollToMessage = (metadata) => {
   if (!webviewRef.value || !metadata.tag) return;
-  
+
   // 尝试根据通知tag找到相关消息并滚动（这个逻辑需要根据具体平台调整）
   const scrollScript = `
     TelegramContacts.openChatByNickname('${metadata.title}')
   `;
-  
+
   webviewRef.value.executeJavaScript(scrollScript).catch(console.warn);
+};
+
+// 🔥 可选：watch preloadpath 变化（调试用）
+watch(preloadpath, (newPath) => {
+  console.log("[UI] Preload path changed:", newPath);
+  if (newPath && !newPath.startsWith("file://")) {
+    console.error("[UI] Preload path not file:// format!");
+  }
+});
+const handleSendText = (text) => {
+  if (isSleeping.value) {
+    ElMessage.warning("容器休眠中，无法发送消息");
+    return;
+  }
+  if (webviewRef.value && text) {
+   webviewRef.value.contentWindow.postMessage(
+      {
+        type: "sendText",
+        payload: text,
+      },
+      "*"
+    );
+    ElMessage.success("消息已发送");
+  }
+};
+// 新增：处理侧边栏保存事件
+const handleSaveSidebarSettings = (settings) => {
+  console.log("接收到侧边栏设置:", JSON.stringify(settings, null, 2));
+
+  const activeFunc = settings.activeFunction || "translation";
+  console.log("Active function:", activeFunc);
+
+  if (activeFunc in pluginConfig && settings[activeFunc]) {
+    // 只合并对应模块的字段
+    Object.assign(pluginConfig[activeFunc], cloneDeep(settings[activeFunc]));
+    console.log(`更新后的 ${activeFunc} 设置:`, pluginConfig[activeFunc]);
+  } else {
+    console.error(
+      `无效的 activeFunc 或 settings[${activeFunc}] 不存在:`,
+      settings
+    );
+    ElMessage.error("设置数据无效");
+    return;
+  }
+  const newConfig = cloneDeep(pluginConfig);
+  // 更新父组件，确保深拷贝
+  emit("update-container", props.container.id, {
+    pluginConfig: newConfig,
+  });
+
+  updatePluginConfig(webviewRef.value, newConfig); // 更新 webview
+  ElMessage.success(`${getFunctionTitle(activeFunc)} 设置已保存并应用到容器`);
 };
 // 生命周期
 onMounted(async () => {
-  window.addEventListener("message", handleWebviewMessage);
-   // 🔥 新增：监听通知事件
+  // 🔥 新增：监听通知事件
   let notificationClickUnsubscribe = null;
   let notificationInterceptUnsubscribe = null;
-  
+
   if (window.electronAPI) {
     // 监听通知点击事件
-    notificationClickUnsubscribe = window.electronAPI.onNotificationClick((data) => {
-      console.log('[Container] 通知被点击:', data);
-      handleNotificationClick(data);
-    });
-    
-    // 监听通知拦截事件（可选，用于调试）
-    notificationInterceptUnsubscribe = window.electronAPI.onNotificationIntercepted((data) => {
-      console.log('[Container] 通知被拦截:', data);
-      // 可以在这里添加UI提示，比如显示未读消息数量
-      if (data.containerId === props.container.id) {
-        // 这是当前容器的通知
-        console.log(`[Container] 当前容器 ${props.container.name} 收到新消息: ${data.title}`);
+    notificationClickUnsubscribe = window.electronAPI.onNotificationClick(
+      (data) => {
+        console.log("[Container] 通知被点击:", data);
+        handleNotificationClick(data);
       }
-    });
+    );
+
+    // 监听通知拦截事件（可选，用于调试）
+    notificationInterceptUnsubscribe =
+      window.electronAPI.onNotificationIntercepted((data) => {
+        console.log("[Container] 通知被拦截:", data);
+        // 可以在这里添加UI提示，比如显示未读消息数量
+        if (data.containerId === props.container.id) {
+          // 这是当前容器的通知
+          console.log(
+            `[Container] 当前容器 ${props.container.name} 收到新消息: ${data.title}`
+          );
+        }
+      });
   }
-  
+
   // 🔥 在 onUnmounted 中清理监听器
   onUnmounted(() => {
-    window.removeEventListener("message", handleWebviewMessage);
     if (notificationClickUnsubscribe) notificationClickUnsubscribe();
     if (notificationInterceptUnsubscribe) notificationInterceptUnsubscribe();
+    onWebviewDestroyed(); // 🔥 优化：手动清理
   });
-  
+
   // 其余现有代码...
- 
- const result = await window.electronAPI?.getPreloadPath();
-if (result) {
-  preloadpath.value = result.preloadPath || '';
-  linepreloadpath.value = result.linepreloadPath || '';
-}
-  if (preloadpath.value) {
-    preloadpath.value = `file://${preloadpath.value.replace(/\\/g, "/")}`; // 强制转换格式
+  await fetchPreloadPath(); // 🔥 用独立函数替换原逻辑
+
+  function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
   }
-  console.log("修正后的 preloadpath:", preloadpath.value); // 应该输出 file:///C:/path/to/preload.js
-   function getRandomInt(min, max) {
-  return Math.floor(Math.random() * (max - min)) + min;
-} 
- const randomNumber = getRandomInt(1, 100);
+  const randomNumber = getRandomInt(1, 100);
   console.log("当前加载的容器:", props.container);
-  await window.electronAPI?.loadPlugin(JSON.parse(JSON.stringify(props.container)));
-  
-  // await window.electronAPI?.loadPlugin(JSON.parse(JSON.stringify(props.container.platformId)));
+  await window.electronAPI?.loadPlugin(
+    JSON.parse(JSON.stringify(props.container))
+  );
+
   console.log("加载插件完成");
- 
+  if (props.container?.pluginConfig) {
+    Object.assign(pluginConfig, cloneDeep(props.container.pluginConfig));
+  }
+
   // 如果容器不是休眠状态，则开始加载
   if (!isSleeping.value) {
     emit("update-container", props.container.id, { status: "loading" });
-    
+
     setTimeout(() => {
       if (!showWebview.value && !isSleeping.value) {
         showWebview.value = true;
@@ -1062,12 +1099,10 @@ if (result) {
       }
     }, 3000);
   }
-  
 });
 
 onUnmounted(() => {
-  window.removeEventListener("message", handleWebviewMessage);
-  onWebviewDestroyed();
+  onWebviewDestroyed(); // 🔥 已在上方处理
 });
 </script>
 
@@ -1092,7 +1127,6 @@ onUnmounted(() => {
 .toolbar-left {
   display: flex;
   align-items: center;
-  gap: 15px;
 }
 .sleep-overlay,
 .rebuild-overlay {
@@ -1228,6 +1262,7 @@ onUnmounted(() => {
 .webview-container {
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .webview-container webview {
@@ -1302,7 +1337,7 @@ onUnmounted(() => {
 .translated-text p {
   border-left: 3px solid #67c23a;
 }
-.webviewError{
+.webviewError {
   display: flex;
   justify-content: center;
   align-items: center;
