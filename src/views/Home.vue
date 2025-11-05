@@ -35,7 +35,7 @@
                 class="platform-card"
                 @click="handleAddContainer(platform)"
               >
-                <img :src="'.' + platform.icon" :alt="platform.name" />
+                <img :src="platform.icon" :alt="platform.name" />
                 <span>{{ platform.name }}</span>
               </div>
             </div>
