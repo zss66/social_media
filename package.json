@@ -7,21 +7,21 @@
   "homepage": "./",
   "icon": "public/icons/app-icon.png",
   "scripts": {
-  "serve": "vue-cli-service serve",
-  "build": "vue-cli-service build",
-  "electron": "electron .",
-  "electron-dev": "concurrently \"yarn serve\" \"wait-on http://localhost:8080 && cross-env NODE_ENV=development electron .\"",
-  "electron-fast": "yarn build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
-  "electron-pack": "electron-builder",
-  
-  "generate-icons": "electron-icon-builder --input=public/icons/app-icon.png --output=build --flatten",
-  "prebuild": "yarn generate-icons",
-  "preelectron-pack": "yarn build"
-},
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"yarn serve\" \"wait-on http://localhost:8080 && cross-env NODE_ENV=development electron .\"",
+    "electron-fast": "yarn build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
+    "electron-pack": "electron-builder",
+    "generate-icons": "electron-icon-builder --input=public/icons/app-icon.png --output=build --flatten",
+    "prebuild": "yarn generate-icons",
+    "preelectron-pack": "yarn build"
+  },
   "dependencies": {
     "@electron/remote": "^2.1.3",
     "@element-plus/icons-vue": "^2.1.0",
     "axios": "^1.12.2",
+    "electron-icon-builder": "^2.0.1",
     "electron-session-proxy": "^1.0.2",
     "electron-store": "^8.1.0",
     "electron-updater": "^6.6.2",
@@ -52,7 +52,6 @@
     "appId": "com.example.multi-social-platform",
     "productName": "Multi Social Platform",
     "directories": {
-      "buildResources": "build",        
       "output": "dist_electron"
     },
     "mac": {
@@ -61,16 +60,15 @@
       "icon": "build/icons/icon.icns"
     },
     "win": {
-      "icon": "build/icons/icon.ico",   
+      "icon": "build/icons/icon.ico",
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
-    },
-    "directories": {
-      "output": "dist_electron"
     },
     "extraResources": [
       {
