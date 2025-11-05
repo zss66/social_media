@@ -7,7 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  # 也可以手动触发
   workflow_dispatch:
 
 jobs:
@@ -38,12 +37,14 @@ jobs:
         run: npm run electron-pack
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package Electron app (Windows)
         if: matrix.os == 'windows-latest'
         run: npm run electron-pack
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts (Mac)
         if: matrix.os == 'macos-latest'
