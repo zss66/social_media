@@ -1,3 +1,11 @@
+/*
+ * @Author: zss zjb520zll@gmail.com
+ * @Date: 2025-09-18 16:35:20
+ * @LastEditors: zss zjb520zll@gmail.com
+ * @LastEditTime: 2025-11-05 15:58:53
+ * @FilePath: /social_media/public/electron.js
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 const {
   app,
   BrowserWindow,
@@ -80,6 +88,7 @@ const { notificationManager } = require("./services/NotificationManager");
 const translationService = require("./services/translationService.js");
 require("@electron/remote/main").initialize();
 const settingsManager = require("./services/settingsManager.cjs");
+const { inject } = require("vue");
 
 const isDev = process.env.NODE_ENV === "development";
 const preloadPath = isDev
@@ -94,7 +103,12 @@ const linepreloadPath = isDev
 // ===========================================
 let mainWindow = null;
 let lockWindow = null;
-let extensionPath = "";
+const extensionPath = app.isPackaged
+  ? path.join(process.resourcesPath, "extensions", "line-extension")
+  : path.join(__dirname, "extensions", "line-extension");
+
+console.log("Extension path:", extensionPath);
+console.log("Exists:", require("fs").existsSync(extensionPath));
 
 function createLockWindow() {
   log("info", "创建锁定窗口");
@@ -127,14 +141,14 @@ function createWindow() {
     show: false,
     frame: false,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
       enableRemoteModule: false,
       webSecurity: false,
       allowRunningInsecureContent: true,
       experimentalFeatures: true,
       webviewTag: true,
-      sandbox: false,
+      sandbox: true,
       preload: preloadPath,
       partition: "persist:my-session",
     },
@@ -164,7 +178,12 @@ function createWindow() {
       mainWindow.webContents.openDevTools();
     }
   });
-
+  mainWindow.on("close", (event) => {
+    // Mac 下点击关闭按钮时，完全退出应用
+    if (process.platform === "darwin") {
+      app.quit(); // 强制退出应用
+    }
+  });
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -196,9 +215,29 @@ async function createContainerSession(containerId, config = {}) {
 
   const partition = `persist:container_${containerId}`;
   const ses = session.fromPartition(partition);
+  ses.webRequest.onHeadersReceived((details, callback) => {
+    const headers = details.responseHeaders;
 
+    // 移除或修改 CSP 头
+    if (headers["content-security-policy"]) {
+      // 方法1：完全移除 CSP（最简单但最不安全）
+      delete headers["content-security-policy"];
+
+      // 方法2：修改 CSP 允许 unsafe-inline（推荐）
+      // headers['content-security-policy'] = headers['content-security-policy'].map(
+      //   csp => csp.replace(/script-src ([^;]+)/g, "script-src $1 'unsafe-inline'")
+      // );
+    }
+
+    // 同样处理 CSP 的备用头
+    if (headers["content-security-policy-report-only"]) {
+      delete headers["content-security-policy-report-only"];
+    }
+
+    callback({ responseHeaders: headers });
+  });
   try {
-    // 🔥 步骤1：完全清理旧的代理设置
+    // 🔥 步骤1：完全清理旧的代理设
     log("info", "🧹 清理旧代理设置");
     await ses.setProxy({
       proxyRules: "",
@@ -208,6 +247,51 @@ async function createContainerSession(containerId, config = {}) {
     });
 
     config = config.config || config; // 兼容传入整个container对象的情况
+    let InjectCode = `
+    const { contextBridge } = require("electron");
+console.log("注入容器信息");
+ contextBridge.exposeInMainWorld('containerConfig', ${JSON.stringify(config)});
+contextBridge.exposeInMainWorld('containerId', "${containerId}");`;
+    // InjectCode += `\n\n// init\n${fs.readFileSync(init_code, "utf8")}`;
+
+    if (config.id === "line") {
+      const lineAPIInitCode = fs.readFileSync(linepreloadPath, "utf8");
+      log("info", "🚀 创建容器会话: line");
+
+      // 确保 LINE API 也使用 contextBridge
+      InjectCode += `\n\n// LINE Chrome API\n${lineAPIInitCode}`;
+    }
+
+    const preloadPath = path.join(
+      app.getPath("temp"),
+      `${config.id}_inject_${containerId}.js`
+    );
+    await fsp.writeFile(preloadPath, InjectCode, { encoding: "utf8" });
+    const absolutePath = path.resolve(preloadPath); // ✅ 新增：绝对路径
+    // ✅ 核心：用containerId作为ID + 自动跳过
+    const scriptId = containerId; // 🎯 您的需求！
+
+    try {
+      // 先检查是否已注册
+      const existingScripts = ses.getPreloadScripts();
+      const alreadyRegistered = existingScripts.some(
+        (script) => script.id === scriptId
+      );
+
+      if (alreadyRegistered) {
+        log("info", `⏭️ 脚本已存在，跳过注册: ${scriptId}`);
+      } else {
+        // 首次注册
+        ses.registerPreloadScript({
+          id: scriptId, // ✅ containerId作为ID
+          type: "frame",
+          filePath: absolutePath,
+        });
+        log("info", `✅ 首次注册成功: ${scriptId}`);
+      }
+    } catch (error) {
+      log("warn", `⚠️ 脚本注册异常（可能已注册）: ${error.message}`);
+    }
     // 🔥 步骤2：设置用户代理和其他指纹
     if (config.fingerprint?.userAgent) {
       ses.setUserAgent(config.fingerprint.userAgent);
@@ -536,9 +620,6 @@ app
     } catch (error) {
       log("error", "设置管理器初始化失败:", error.message);
     }
-
-    extensionPath = path.join(__dirname, "extensions", "line-extension");
-
     protocol.registerFileProtocol("file", (request, callback) => {
       const pathname = decodeURI(request.url.replace("file:///", ""));
       callback(pathname);
@@ -562,9 +643,7 @@ app
   });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  app.quit();
 });
 
 app.on("before-quit", async () => {
@@ -598,10 +677,17 @@ ipcMain.handle("minimize-window", () => {
   }
   return { success: false };
 });
-
+ipcMain.handle("window-toggle-fullscreen", () => {
+  if (mainWindow) {
+    const isFullScreen = mainWindow.isFullScreen();
+    mainWindow.setFullScreen(!isFullScreen);
+    return { success: true, isFullScreen: !isFullScreen };
+  }
+  return { success: false };
+});
 ipcMain.handle("close-window", () => {
   if (mainWindow) {
-    mainWindow.close();
+    app.quit();
     return { success: true };
   }
   return { success: false };
@@ -656,7 +742,16 @@ ipcMain.on("renderer-log", (event, logData) => {
     log(level, `${prefix} ${message}`);
   }
 });
-
+ipcMain.handle("read-script-file", async (event, relativePath) => {
+  try {
+    const scriptPath = path.join(app.getAppPath(), relativePath);
+    const content = fs.readFileSync(scriptPath, "utf-8");
+    return { success: true, content };
+  } catch (error) {
+    console.error("读取脚本文件失败:", error);
+    return { success: false, error: error.message };
+  }
+});
 // 🔥 修复：容器管理IPC
 ipcMain.handle(
   "create-container-session",
@@ -837,6 +932,57 @@ ipcMain.handle("translate-text", async (event, text, channel, targetLang) => {
     return { success: false, error: error.message };
   }
 });
+// 知识库问答
+ipcMain.handle(
+  "send-knowledge-base-message",
+  async (event, message, knowledge) => {
+    try {
+      log("info", `知识库问答请求，消息: ${message}`);
+      const response = await fetch(
+        "http://95.40.47.163:8000/api/v1/kb/rag/ask",
+        {
+          method: "POST",
+          headers: {
+            "X-User-ID": knowledge.user_id,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            question: message,
+            search_params: {
+              top_k: knowledge.topK,
+              similarity_threshold: knowledge.similarityThreshold,
+            },
+            knowledge_base_id: knowledge.selectedKnowledgeBase,
+            stream: false,
+            endpoint_name: "siliconflow_DP_V3",
+          }),
+        }
+      );
+      const rawText = await response.text();
+
+      // ✅ 打印原文
+      log("info", `响应原文: ${rawText}`);
+
+      // 检查 HTTP 状态
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (err) {
+        throw new Error("解析 JSON 失败: " + err.message);
+      }
+
+      if (!data.answer) {
+        throw new Error("接口返回不包含 answer 字段: " + JSON.stringify(data));
+      }
+
+      console.log("✅ 响应数据:", data);
+      return data.answer;
+    } catch (error) {
+      console.error("❌ 错误:", error.message);
+      return { success: false, error: error.message };
+    }
+  }
+);
 
 // 文件操作
 ipcMain.handle("save-file", async (event, data, filename) => {

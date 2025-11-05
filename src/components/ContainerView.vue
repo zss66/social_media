@@ -32,15 +32,6 @@
               size="small"
             />
           </el-tooltip>
-
-          <el-tooltip content="刷新页面">
-            <el-button
-              @click="reload"
-              icon="RefreshRight"
-              circle
-              size="small"
-            />
-          </el-tooltip>
         </div>
       </div>
 
@@ -202,20 +193,20 @@
             ref="webviewRef"
             :id="`webview_${container.id}`"
             :key="webviewKey"
-            :src="`${container.url}?platform=${container.platformId}&containerId=${container.id}`"
+            :src="container.url"
             :useragent="container.config.fingerprint.userAgent"
             :partition="`persist:container_${container.id}`"
             :preload="preloadpath"
             allowpopups
-            webpreferences="webSecurity=false,nodeintegration=true allowRunningInsecureContent, contextIsolation=false"
+            webpreferences="contextIsolation=false,disableWebSecurity=yes, nodeIntegration=false, nodeIntegrationInSubFrames=true, webSecurity=false, allowRunningInsecureContent=true"
             @did-navigate="onNavigate"
+            @did-start-loading="onStartLoad"
             @did-navigate-in-page="onNavigate"
             @dom-ready="handleWebviewReady"
             @did-finish-load="handleWebviewLoaded"
             @new-window="handleNewWindow"
             @did-fail-load="handleWebviewError"
             @destroyed="onWebviewDestroyed"
-            @console-message="handleConsoleMessage"
             style="flex: 1; height: 100%"
           />
           <Tool_sidebar
@@ -272,8 +263,9 @@ import {
   watch,
   reactive,
 } from "vue";
-import { debounce, cloneDeep } from "lodash-es"; // 🔥 新增：import debounce（需 yarn add lodash-es 或类似）
+import { debounce, cloneDeep, has } from "lodash-es"; // 🔥 新增：import debounce（需 yarn add lodash-es 或类似）
 import { ElMessage } from "element-plus";
+
 import {
   CircleCheck,
   Refresh,
@@ -291,6 +283,7 @@ import ProxyDiagnosticTool from "./ProxyDiagnosticTool.vue";
 import { useStore } from "vuex";
 import { injectFeatures } from "@/utils/injector.js";
 import Tool_sidebar from "./Tool_sidebar.vue";
+import knowledge from "../store/modules/knowledge";
 
 const store = useStore();
 
@@ -390,15 +383,14 @@ const pluginConfig = reactive({
     preview: false,
     autoVoice: false,
   },
-
-  // 新增：代理设置
-  proxy: {
-    enabled: false,
-    type: "http",
-    host: "127.0.0.1",
-    port: 8080,
+  knowledge: {
+    user_id: process.env.VUE_APP_USER_ID,
+    selectedKnowledgeBase: null,
+    enableRetrieval: true,
+    topK: 3,
+    similarityThreshold: 0.3,
+    searchQuery: "",
   },
-
   // 新增：群发设置
   broadcast: {
     enabled: false,
@@ -434,7 +426,7 @@ const pluginConfig = reactive({
     theme: "auto",
   },
 });
-
+let hasInjected = false;
 function updateNavState() {
   const webview = webviewRef.value;
   if (!webview) return;
@@ -456,21 +448,32 @@ function goForward() {
   }
 }
 
-function reload() {
-  const webview = webviewRef.value;
-  isWebviewError.value = false;
-  if (webview) {
-    webview.reload();
-  }
-}
-
 function onNavigate() {
+  hasInjected = false;
   updateNavState();
+}
+async function onStartLoad() {
+  // if (props.container.platformId === "instagram") {
+  //   if (!webviewRef.value) return; // 🔥 新增：防护检查
+  //   if (hasInjected) return;
+  //   hasInjected = true;
+  //   const code = await window.electronAPI.readScriptFile(
+  //     "/src/scripts/Instagram/ws_listen.js"
+  //   );
+  //   console.log("[UI] Injecting script:", code);
+  //   await webviewRef.value
+  //     .executeJavaScript(
+  //       `
+  //   ${code.content}
+  // `
+  //     )
+  //     .catch(console.error);
+  // }
 }
 const getFunctionTitle = (func) => {
   const titleMap = {
     translation: "翻译",
-    proxy: "代理",
+    knowledge: "知识库",
     broadcast: "群发",
     quickReply: "快速回复",
     profile: "个人画像",
@@ -489,14 +492,14 @@ function updatePluginConfig(webview, newConfig) {
   webview.executeJavaScript(configUpdateCode).catch(console.error);
 }
 // 监听 pluginConfig 的变化，使用 deep: true
-watch(
-  pluginConfig,
-  (newVal) => {
-    console.log("pluginConfig 变化:", newVal);
-    updatePluginConfig(webviewRef.value, newVal);
-  },
-  { deep: true }
-);
+// watch(
+//   pluginConfig,
+//   (newVal) => {
+//     console.log("pluginConfig 变化:", newVal);
+//     updatePluginConfig(webviewRef.value, newVal);
+//   },
+//   { deep: true }
+// );
 
 // 🔥 优化：监听容器状态变化 - 移除 sleeping -> active 自动重建（移到 wakeContainer 顺序处理，避免 race）
 watch(
@@ -703,12 +706,18 @@ const debouncedWake = debounce(wakeContainer, 500); // 500ms 防抖
 
 // 🔥 优化：webview 事件处理 - 添加 ref 检查和日志
 const handleWebviewReady = async () => {
-  if (!webviewRef.value) return; // 🔥 新增：防护检查
-  console.log("Webview DOM 加载完成"); // 调试
-  console.log("Webview ref:", webviewRef.value);
   updateNavState();
   emit("update-container", props.container.id, { status: "ready" });
-
+  if (webviewRef.value) {
+    // 🔥 防护：检查 ref
+    injectFeatures(
+      webviewRef.value,
+      props.container.platform.id, // 比如 'whatsapp'
+      props.container.features || ["translation"],
+      pluginConfig
+    );
+    console.log("容器插件注入完成", props.container.platform.id);
+  }
   // 注册webview到主进程
   if (props.container?.id) {
     try {
@@ -731,18 +740,6 @@ const handleWebviewReady = async () => {
   await restoreWebviewData();
 
   // 注入自定义脚本
-  setTimeout(() => {
-    if (webviewRef.value) {
-      // 🔥 防护：检查 ref
-      injectFeatures(
-        webviewRef.value,
-        props.container.platform.id, // 比如 'whatsapp'
-        props.container.features || ["translation"],
-        pluginConfig
-      );
-      console.log("容器插件注入完成", props.container.platform.id);
-    }
-  }, 1000);
 };
 
 const handleWebviewLoaded = () => {
@@ -861,10 +858,6 @@ const onWebviewDestroyed = async () => {
       console.error("Unregister failed:", error);
     }
   }
-};
-
-const handleConsoleMessage = (event) => {
-  console.log("Webview console:", event.message);
 };
 
 // 其他原有方法保持不变
@@ -997,7 +990,7 @@ const handleSendText = (text) => {
     return;
   }
   if (webviewRef.value && text) {
-   webviewRef.value.contentWindow.postMessage(
+    webviewRef.value.contentWindow.postMessage(
       {
         type: "sendText",
         payload: text,
@@ -1053,13 +1046,9 @@ onMounted(async () => {
     // 监听通知拦截事件（可选，用于调试）
     notificationInterceptUnsubscribe =
       window.electronAPI.onNotificationIntercepted((data) => {
-        console.log("[Container] 通知被拦截:", data);
         // 可以在这里添加UI提示，比如显示未读消息数量
         if (data.containerId === props.container.id) {
           // 这是当前容器的通知
-          console.log(
-            `[Container] 当前容器 ${props.container.name} 收到新消息: ${data.title}`
-          );
         }
       });
   }

@@ -65,6 +65,128 @@ export const telegramGetlists = `
 
       console.log("[TG IndexedDB 提取完成]", allContactsMap.size, "条记录");
 
+      // 工具函数
+      const waitForElement = (selector, timeout = 10000) => {
+        return new Promise((resolve, reject) => {
+          const interval = 100;
+          let waited = 0;
+          const timer = setInterval(() => {
+            const el = document.querySelector(selector);
+            if (el) {
+              clearInterval(timer);
+              resolve(el);
+            } else if (waited >= timeout) {
+              clearInterval(timer);
+              reject(new Error("等待元素超时: " + selector));
+            }
+            waited += interval;
+          }, interval);
+        });
+      };
+
+      function simulateClick(el) {
+        const eventOptions = {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        };
+        el.dispatchEvent(new MouseEvent("mousedown", eventOptions));
+        el.dispatchEvent(new MouseEvent("mouseup", eventOptions));
+        el.dispatchEvent(new MouseEvent("click", eventOptions));
+      }
+
+      const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+      const scrollChatToBottom = async (maxTries = 10, delay = 400) => {
+        try {
+          const bubble = await waitForElement(
+            "div.bubbles.has-groups.has-sticky-dates"
+          );
+
+          let tries = 0;
+          while (tries < maxTries) {
+            if (bubble.classList.contains("scrolled-down")) {
+              console.log("[已滚动到底部]");
+              break;
+            }
+
+            // 尝试点击"滚动到底部"按钮
+            const goDownButton = document.querySelector(
+              "button.bubbles-go-down.btn-corner"
+            );
+            if (goDownButton) {
+              simulateClick(goDownButton);
+              console.log("[点击] bubbles-go-down 成功");
+            } else {
+              console.warn("[未找到] bubbles-go-down 按钮");
+            }
+
+            await sleep(delay);
+            tries++;
+          }
+
+          if (!bubble.classList.contains("scrolled-down")) {
+            console.warn("[警告] 多次尝试后仍未滚动到底部");
+          }
+        } catch (err) {
+          console.error("[错误] 滚动失败:", err);
+        }
+      };
+
+      // 检查当前是否已打开指定对话
+      const isCurrentChat = (peerId) => {
+        const currentPeerEl = document.querySelector(
+          'div.top>.user-title .peer-title[data-peer-id="' + peerId + '"]'
+        );
+        if (currentPeerEl) {
+          console.log("[已打开] peerId:", peerId);
+          return true;
+        }
+        return false;
+      };
+
+      // 根据 peerId 打开对话（新增功能）
+      const openChatByPeerId = async (peerId) => {
+        // 检查是否已经打开
+        if (isCurrentChat(peerId)) {
+          console.log("[无需操作] 对话已打开, peerId:", peerId);
+          return { success: true, alreadyOpen: true };
+        }
+
+        const contact = allContactsMap.get(String(peerId));
+        if (!contact) {
+          console.warn("[未找到联系人] peerId:", peerId);
+          return { success: false, error: "联系人不存在" };
+        }
+
+        console.log("[准备打开对话]", contact.name, "peerId:", peerId);
+
+        // 尝试在侧边栏找到对话项并点击
+        const el = document.querySelector('a[data-peer-id="' + peerId + '"]');
+        if (el) {
+          simulateClick(el);
+          console.log("[点击侧边栏对话] 成功");
+          setTimeout(() => {
+            scrollChatToBottom();
+          }, 1000);
+          return { success: true, alreadyOpen: false };
+        } else {
+          // 如果侧边栏没有加载,则跳转 URL
+          const jumpUrl =
+            "https://web.telegram.org/k/?account=" +
+            accountNum +
+            "#" +
+            peerId;
+          console.log("[未加载 DOM 元素，跳转至页面]", jumpUrl);
+          window.location.href = jumpUrl;
+          setTimeout(() => {
+            scrollChatToBottom();
+          }, 1000);
+          return { success: true, alreadyOpen: false, redirected: true };
+        }
+      };
+
+      // 根据昵称打开对话（原有功能）
       const openChatByNickname = async (nickname, exact = false) => {
         const matcher = exact
           ? (c) => c.name === nickname
@@ -75,126 +197,16 @@ export const telegramGetlists = `
           console.warn("[未找到]", nickname);
           return false;
         }
-        const waitForElement = (selector, timeout = 10000) => {
-          return new Promise((resolve, reject) => {
-            const interval = 100;
-            let waited = 0;
-            const timer = setInterval(() => {
-              const el = document.querySelector(selector);
-              if (el) {
-                clearInterval(timer);
-                resolve(el);
-              } else if (waited >= timeout) {
-                clearInterval(timer);
-                reject(new Error("等待元素超时: " + selector));
-              }
-              waited += interval;
-            }, interval);
-          });
-        };
 
-       
-        function simulateClick(el) {
-          const eventOptions = {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-          };
-          el.dispatchEvent(new MouseEvent("mousedown", eventOptions));
-          el.dispatchEvent(new MouseEvent("mouseup", eventOptions));
-          el.dispatchEvent(new MouseEvent("click", eventOptions));
-        }
-         const scrollChatToBottom = async (maxTries = 10, delay = 400) => {
-          try {
-            const waitForElement = (selector, timeout = 10000) => {
-              return new Promise((resolve, reject) => {
-                const interval = 100;
-                let waited = 0;
-                const timer = setInterval(() => {
-                  const el = document.querySelector(selector);
-                  if (el) {
-                    clearInterval(timer);
-                    resolve(el);
-                  } else if (waited >= timeout) {
-                    clearInterval(timer);
-                    reject(new Error("等待元素超时: " + selector));
-                  }
-                  waited += interval;
-                }, interval);
-              });
-            };
-
-            const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
-
-            const bubble = await waitForElement(
-              "div.bubbles.has-groups.has-sticky-dates"
-            );
-
-            let tries = 0;
-            while (tries < maxTries) {
-              if (bubble.classList.contains("scrolled-down")) {
-                console.log("[已滚动到底部]");
-                break;
-              }
-
-              // 尝试点击“滚动到底部”按钮
-              const goDownButton = document.querySelector(
-                "button.bubbles-go-down.btn-corner"
-              );
-              if (goDownButton) {
-                simulateClick(goDownButton);
-                console.log('[点击] bubbles-go-down 成功');
-              } else {
-                console.warn("[未找到] bubbles-go-down 按钮");
-              }
-
-              await sleep(delay);
-              tries++;
-            }
-
-            if (!bubble.classList.contains("scrolled-down")) {
-              console.warn("[警告] 多次尝试后仍未滚动到底部");
-            }
-          } catch (err) {
-            console.error("[错误] 滚动失败:", err);
-          }
-        };
-        const el = document.querySelector(
-          'a[data-peer-id="' + contact.peerId + '"]'
-        );
-        if (el) {
-          simulateClick(el);
-          setTimeout(() => {
-            scrollChatToBottom();
-          }, 1000);
-          return true;
-        } else {
-          // 获取当前账户编号用于跳转
-          const urlParams = new URLSearchParams(window.location.search);
-          const accountNum = urlParams.get("account") || "1";
-
-          // 设置跳转地址
-          const jumpUrl =
-            "https://web.telegram.org/k/?account=" +
-            accountNum +
-            "platform" +
-            electronAPI.getinfo().platform +
-            "containerId" +
-            electronAPI.getinfo().containerId +
-            "#" +
-            contact.peerId;
-          console.log("[未加载 DOM 元素，跳转至页面]", jumpUrl);
-          window.location.href = jumpUrl;
-          setTimeout(() => {
-            scrollChatToBottom();
-          }, 1000);
-          return true;
-        }
+        // 复用 openChatByPeerId
+        return await openChatByPeerId(contact.peerId);
       };
 
       window.TelegramContacts = {
         getAll: () => Array.from(allContactsMap.values()),
         openChatByNickname,
+        openChatByPeerId, // 新增方法
+        isCurrentChat, // 新增方法
         loadAllContacts: async () => {}, // 不再需要滚动加载
         getStats: () => ({
           total: allContactsMap.size,
@@ -209,6 +221,10 @@ export const telegramGetlists = `
 
       const stats = window.TelegramContacts.getStats();
       console.log("[加载完成]", stats);
+      console.log("[使用方法]");
+      console.log("  - 打开对话: window.TelegramContacts.openChatByPeerId('1611490212')");
+      console.log("  - 检查是否已打开: window.TelegramContacts.isCurrentChat('1611490212')");
+      console.log("  - 按昵称打开: window.TelegramContacts.openChatByNickname('z ss', true)");
     })();
   };
 

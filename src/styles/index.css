@@ -160,7 +160,10 @@ html, body {
 .el-select .el-input__wrapper {
   transition: all 0.3s ease;
 }
-
+.el-slider__input{
+  width: 50px;
+  height: 25px;
+}
 /* 标签样式增强 */
 .el-tag {
   border-radius: 12px;
@@ -177,7 +180,8 @@ html, body {
 /* 对话框样式增强 */
 .el-dialog {
   border-radius: 12px;
-  overflow: hidden;
+  overflow: scroll;
+  max-height: calc(100vh - 80px);
 }
 
 .el-dialog__header {
@@ -498,8 +502,7 @@ textarea:focus-visible {
 .cursor-pointer { cursor: pointer; }
 .cursor-not-allowed { cursor: not-allowed; }
 
-.select-none { user-select: none; }
-.select-text { user-select: text; }
+
 
 /* 过渡效果 */
 .transition-all { transition: all 0.3s ease; }

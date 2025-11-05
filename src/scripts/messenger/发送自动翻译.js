@@ -1,16 +1,19 @@
-export const whatsappSendScript = `
 // ====== 配置 ======
 function getConfig() {
-  console.log('当前 window.pluginConfig:', window.pluginConfig);
   return {
-    targetLanguage: window.pluginConfig?.translation.targetLanguage || localStorage.getItem('telegramTranslationLanguage') || 'zh-CN',
-    sourceLanguage: window.pluginConfig?.translation.sourceLanguage || 'zh-CN',
-    buttonText: window.pluginConfig?.translation.buttonText || '🌐 翻译',
-    channel: window.pluginConfig?.translation.channel || 'google',
-    autoTranslateReceive: window.pluginConfig?.translation.autoTranslateReceive || false,
-    autoTranslateSend: window.pluginConfig?.translation.autoTranslateSend || false,
+    targetLanguage:
+      window.pluginConfig?.translation.targetLanguage ||
+      localStorage.getItem("messengerTranslationLanguage") ||
+      "zh-CN",
+    sourceLanguage: window.pluginConfig?.translation.sourceLanguage || "zh-CN",
+    buttonText: window.pluginConfig?.translation.buttonText || "🌐 翻译",
+    channel: window.pluginConfig?.translation.channel || "google",
+    autoTranslateReceive:
+      window.pluginConfig?.translation.autoTranslateReceive || false,
+    autoTranslateSend:
+      window.pluginConfig?.translation.autoTranslateSend || false,
     preview: window.pluginConfig?.translation.preview || true,
-    loadingText: window.pluginConfig?.translation.loadingText || '翻译中...'
+    loadingText: window.pluginConfig?.translation.loadingText || "翻译中...",
   };
 }
 
@@ -21,36 +24,56 @@ const state = {
 };
 
 // ====== 找编辑器 ======
-function getLexicalEditor() {
-  const cands = [
-    ...document.querySelectorAll(
-      'div[role="textbox"][contenteditable="true"][data-lexical-editor="true"]'
-    ),
-  ].filter((el) => {
-    const al = (el.getAttribute("aria-label") || "").toLowerCase();
-    const ph = (el.getAttribute("aria-placeholder") || "").toLowerCase();
-    if (/搜索|search/.test(al) || /搜索|search/.test(ph)) return false;
-    return true;
-  });
-  if (cands.length === 0) return null;
-  const footerBox = cands.find((el) => el.closest("footer"));
-  if (footerBox) return footerBox;
-  cands.sort(
-    (a, b) =>
-      b.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom
-  );
-  return cands[0];
+function getMessengerEditor() {
+  const selectors = [
+    'div[aria-label="发消息"][contenteditable="true"]',
+    'div[aria-label="发送消息"][contenteditable="true"]',
+    'div[aria-label*="消息"][contenteditable="true"]',
+    'div[data-lexical-editor="true"][contenteditable="true"]',
+  ];
+
+  for (const selector of selectors) {
+    const editors = document.querySelectorAll(selector);
+    for (const editor of editors) {
+      const ariaLabel = (editor.getAttribute("aria-label") || "").toLowerCase();
+      const ariaPlaceholder = (
+        editor.getAttribute("aria-placeholder") || ""
+      ).toLowerCase();
+
+      if (
+        ariaLabel.includes("搜索") ||
+        ariaLabel.includes("search") ||
+        ariaPlaceholder.includes("搜索") ||
+        ariaPlaceholder.includes("search")
+      ) {
+        continue;
+      }
+
+      const inChatArea = editor.closest(
+        '[role="main"], .x1n2onr6, .x1q0g3np, .x9f619'
+      );
+      if (inChatArea) {
+        return editor;
+      }
+    }
+  }
+
+  for (const selector of selectors) {
+    const editor = document.querySelector(selector);
+    if (editor) return editor;
+  }
+
+  return null;
 }
 
 // ====== 清除原始文本 ======
 async function clearOriginalText() {
-  const editor = getLexicalEditor();
+  const editor = getMessengerEditor();
   if (!editor) return false;
 
   editor.focus();
   await new Promise((resolve) => setTimeout(resolve, 50));
 
-  // 全选
   const selection = window.getSelection();
   selection.removeAllRanges();
   const range = document.createRange();
@@ -59,7 +82,6 @@ async function clearOriginalText() {
 
   await new Promise((resolve) => setTimeout(resolve, 50));
 
-  // 模拟 Delete 键
   editor.dispatchEvent(
     new KeyboardEvent("keydown", {
       bubbles: true,
@@ -83,80 +105,79 @@ async function clearOriginalText() {
 // ====== 文本替换和发送 ======
 async function typeText(editor, text, perCharDelay = 20) {
   editor.focus();
-  await new Promise(r => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 50));
 
   for (let char of text) {
-    // 使用 execCommand 插入文本，更可靠触发 Lexical 内部监听
     try {
-      document.execCommand('insertText', false, char);
+      document.execCommand("insertText", false, char);
     } catch (e) {
-      // fallback：直接修改 DOM 并触发 InputEvent
       editor.textContent += char;
-      editor.dispatchEvent(new InputEvent('input', {
-        bubbles: true,
-        inputType: 'insertText',
-        data: char
-      }));
+      editor.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          inputType: "insertText",
+          data: char,
+        })
+      );
     }
 
-    await new Promise(r => setTimeout(r, perCharDelay));
+    await new Promise((r) => setTimeout(r, perCharDelay));
   }
 
-  // 给编辑器一点时间处理最后一个字符
-  await new Promise(r => setTimeout(r, 30));
+  await new Promise((r) => setTimeout(r, 30));
 }
 
-window.replaceAndSend = async function(text, bypassTranslation = false) {
-  const editor = getLexicalEditor();
+// ====== 替换并发送（仅使用 Enter 键） ======
+window.replaceAndSend = async function (text, bypassTranslation = false) {
+  const editor = getMessengerEditor();
   if (!editor) return;
 
   state.bypassIntercept = true;
 
   if (!bypassTranslation) {
-    // 需要替换文本（翻译场景）
     await clearOriginalText();
     await typeText(editor, text);
   }
 
-  // 触发发送
-  const sendBtn = document.querySelector(
-    "button[aria-label='发送'], button[aria-label='Send'], button[title='Send'], button[data-testid='send']"
+  const keyEvent = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key: "Enter",
+    code: "Enter",
+    keyCode: 13,
+  });
+  editor.dispatchEvent(keyEvent);
+  editor.dispatchEvent(
+    new InputEvent("input", {
+      bubbles: true,
+      inputType: "insertText",
+      data: "\n",
+    })
   );
 
-  if (sendBtn) {
-    sendBtn.click();
-  } else {
-    editor.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        bubbles: true,
-        cancelable: true,
-        key: "Enter",
-        code: "Enter",
-      })
-    );
-  }
-
-  // 恢复拦截状态
   setTimeout(() => {
     state.bypassIntercept = false;
   }, 50);
-}
+};
 
 // ====== 翻译接口 ======
 async function translateText(text) {
   try {
     const config = getConfig();
-    const response = await window.electronAPI.translateText(text, config.channel, config.sourceLanguage);
+    const response = await window.electronAPI.translateText(
+      text,
+      config.channel,
+      config.sourceLanguage
+    );
     return response?.success ? response.translatedText : text;
   } catch (error) {
-    console.error('翻译错误:', error);
     return text;
   }
 }
 
 // ====== 获取编辑器位置信息 ======
 function getEditorPosition() {
-  const editor = getLexicalEditor();
+  const editor = getMessengerEditor();
   if (!editor) return { bottom: 100, left: "50%" };
 
   const rect = editor.getBoundingClientRect();
@@ -175,35 +196,37 @@ function showTranslatePreview(rawText) {
   const pos = getEditorPosition();
 
   const preview = document.createElement("div");
-  preview.style.cssText = \`
+  preview.style.cssText = `
     position: fixed;
-    bottom: \${pos.bottom}px;
-    left: \${pos.left}px;
+    bottom: ${pos.bottom}px;
+    left: ${pos.left}px;
     transform: translateX(-50%);
     background: #ffffff;
     border: 1px solid #e1e5e9;
     border-radius: 8px;
     padding: 16px;
     z-index: 10000;
-    width: \${pos.width}px;
+    width: ${pos.width}px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 14px;
     line-height: 1.4;
-  \`;
+  `;
 
-  preview.innerHTML = \`
+  preview.innerHTML = `
     <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #ffffff; z-index: 1;"></div>
     <div style="position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 9px solid #e1e5e9; z-index: 0;"></div>
     <div style="margin-bottom: 12px;">
       <div style="color: #65676b; font-size: 12px; margin-bottom: 4px;">原文</div>
-      <div style="padding: 8px; background: #f7f8fa; border-radius: 6px; color: #1c1e21;">\${escapeHtml(
+      <div style="padding: 8px; background: #f7f8fa; border-radius: 6px; color: #1c1e21;">${escapeHtml(
         rawText
       )}</div>
     </div>
     <div style="margin-bottom: 16px;">
       <div style="color: #65676b; font-size: 12px; margin-bottom: 4px;">翻译预览</div>
-      <div id="pv_status" style="color: #1877f2; font-size: 12px; margin-bottom: 4px;">\${config.loadingText}</div>
+      <div id="pv_status" style="color: #1877f2; font-size: 12px; margin-bottom: 4px;">${
+        config.loadingText
+      }</div>
       <div id="pv_trans" contenteditable="false" style="padding: 8px; border: 1px solid #dddfe2; border-radius: 6px; min-height: 36px; outline: none; color: #1c1e21; cursor: pointer;" placeholder="翻译结果"></div>
     </div>
     <div style="display: flex; gap: 8px; justify-content: flex-end;">
@@ -211,7 +234,7 @@ function showTranslatePreview(rawText) {
       <button id="pv_retry" style="padding: 6px 12px; border: 1px solid #1877f2; border-radius: 6px; background: #ffffff; color: #1877f2; cursor: pointer; font-size: 13px;">重试</button>
       <button id="pv_confirm" style="padding: 6px 12px; border: none; border-radius: 6px; background: #1877f2; color: #ffffff; cursor: pointer; font-size: 13px; font-weight: 500;">发送</button>
     </div>
-  \`;
+  `;
 
   document.body.appendChild(preview);
 
@@ -351,7 +374,7 @@ function escapeHtml(text) {
 
 // ====== 拦截发送 ======
 function interceptSendAction() {
-  const editor = getLexicalEditor();
+  const editor = getMessengerEditor();
   if (!editor) return;
 
   const rawText = editor.innerText.trim();
@@ -359,9 +382,8 @@ function interceptSendAction() {
 
   const config = getConfig();
 
-  // 当autoTranslateSend为假时，直接发送原文
   if (!config.autoTranslateSend) {
-    replaceAndSend(rawText, true); // bypassTranslation=true，直接触发Enter
+    replaceAndSend(rawText, true);
     return;
   }
 
@@ -375,20 +397,16 @@ function interceptSendAction() {
     return;
   }
 
-  // 当autoTranslateSend为真，preview为真时，启动翻译预览
-  if (window.pluginConfig?.translation.preview) {
-    console.log('显示翻译预览',window.pluginConfig?.translation.preview);
+  if (config.preview) {
     showTranslatePreview(rawText);
   } else {
-    console.log('直接发送翻译内容',window.pluginConfig?.translation.preview);
-
-    // 当autoTranslateSend为真，preview为假时，直接发送翻译的内容
-    translateText(rawText).then((translatedText) => {
-      replaceAndSend(translatedText);
-    }).catch((err) => {
-      console.error('翻译失败，发送原文:', err);
-      replaceAndSend(rawText, true); // 翻译失败时直接发送原文
-    });
+    translateText(rawText)
+      .then((translatedText) => {
+        replaceAndSend(translatedText);
+      })
+      .catch((err) => {
+        replaceAndSend(rawText, true);
+      });
   }
 }
 
@@ -410,39 +428,12 @@ function attachToEditor(el) {
   );
 }
 
-function bindSendButton() {
-  function tryBind() {
-    const sendBtn = document.querySelector(
-      "button[aria-label='发送'], button[aria-label='Send'], button[title='Send'], button[data-testid='send']"
-    );
-    if (sendBtn && !sendBtn._boundByScript) {
-      sendBtn._boundByScript = true;
-      sendBtn.addEventListener(
-        "click",
-        (e) => {
-          if (!state.bypassIntercept) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            interceptSendAction();
-          }
-        },
-        true
-      );
-    }
-  }
-  tryBind();
-  new MutationObserver(tryBind).observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
-}
-
 function ensureBindings() {
-  const el = getLexicalEditor();
+  const el = getMessengerEditor();
   if (el) attachToEditor(el);
 
   new MutationObserver(() => {
-    const ed = getLexicalEditor();
+    const ed = getMessengerEditor();
     if (ed) attachToEditor(ed);
   }).observe(document.body, { childList: true, subtree: true });
 }
@@ -450,18 +441,17 @@ function ensureBindings() {
 // ====== 初始化 ======
 function init() {
   ensureBindings();
-  bindSendButton();
-  document.addEventListener("click", e => { if (state.pendingPreview && !state.pendingPreview.node.contains(e.target)) closePreview(); });
-  console.log("翻译拦截脚本已初始化");
+  document.addEventListener("click", (e) => {
+    if (state.pendingPreview && !state.pendingPreview.node.contains(e.target))
+      closePreview();
+  });
   window.addEventListener("message", (event) => {
     if (event.data?.type === "sendText") {
-      console.log("收到 Vue 的消息:", event.data.payload);
       replaceAndSend(event.data.payload);
     }
   });
 }
 
 // ====== 启动 ======
-document.addEventListener('DOMContentLoaded', init);
-if (document.readyState === 'complete') init();
-`;
+document.addEventListener("DOMContentLoaded", init);
+if (document.readyState === "complete") init();

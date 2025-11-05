@@ -1,16 +1,15 @@
-export const whatsappSendScript = `
+export const telegramSendScript = `
 // ====== 配置 ======
 function getConfig() {
-  console.log('当前 window.pluginConfig:', window.pluginConfig);
   return {
-    targetLanguage: window.pluginConfig?.translation.targetLanguage || localStorage.getItem('telegramTranslationLanguage') || 'zh-CN',
-    sourceLanguage: window.pluginConfig?.translation.sourceLanguage || 'zh-CN',
-    buttonText: window.pluginConfig?.translation.buttonText || '🌐 翻译',
-    channel: window.pluginConfig?.translation.channel || 'google',
-    autoTranslateReceive: window.pluginConfig?.translation.autoTranslateReceive || false,
-    autoTranslateSend: window.pluginConfig?.translation.autoTranslateSend || false,
-    preview: window.pluginConfig?.translation.preview || true,
-    loadingText: window.pluginConfig?.translation.loadingText || '翻译中...'
+    targetLanguage: window.pluginConfig?.translation?.targetLanguage || localStorage.getItem('telegramTranslationLanguage') || 'zh-CN',
+    sourceLanguage: window.pluginConfig?.translation?.sourceLanguage || 'zh-CN',
+    buttonText: window.pluginConfig?.translation?.buttonText || '🌐 翻译',
+    channel: window.pluginConfig?.translation?.channel || 'google',
+    autoTranslateReceive: window.pluginConfig?.translation?.autoTranslateReceive || false,
+    autoTranslateSend: window.pluginConfig?.translation?.autoTranslateSend || true,
+    preview: window.pluginConfig?.translation?.preview !== undefined ? window.pluginConfig?.translation?.preview : true,
+    loadingText: window.pluginConfig?.translation?.loadingText || '翻译中...'
   };
 }
 
@@ -21,34 +20,23 @@ const state = {
 };
 
 // ====== 找编辑器 ======
-function getLexicalEditor() {
-  const cands = [
-    ...document.querySelectorAll(
-      'div[role="textbox"][contenteditable="true"][data-lexical-editor="true"]'
-    ),
-  ].filter((el) => {
-    const al = (el.getAttribute("aria-label") || "").toLowerCase();
-    const ph = (el.getAttribute("aria-placeholder") || "").toLowerCase();
-    if (/搜索|search/.test(al) || /搜索|search/.test(ph)) return false;
-    return true;
+function getTelegramEditor() {
+  const editors = [
+    ...document.querySelectorAll('div.input-message-input[contenteditable="true"]')
+  ].filter(el => {
+    // 仅检查 contenteditable 属性，或者添加其他可能的条件
+    return el.isConnected; // 确保元素仍在 DOM 中
   });
-  if (cands.length === 0) return null;
-  const footerBox = cands.find((el) => el.closest("footer"));
-  if (footerBox) return footerBox;
-  cands.sort(
-    (a, b) =>
-      b.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom
-  );
-  return cands[0];
+  return editors.length > 0 ? editors[0] : null;
 }
 
 // ====== 清除原始文本 ======
 async function clearOriginalText() {
-  const editor = getLexicalEditor();
+  const editor = getTelegramEditor();
   if (!editor) return false;
 
   editor.focus();
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await new Promise(resolve => setTimeout(resolve, 50));
 
   // 全选
   const selection = window.getSelection();
@@ -57,7 +45,7 @@ async function clearOriginalText() {
   range.selectNodeContents(editor);
   selection.addRange(range);
 
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await new Promise(resolve => setTimeout(resolve, 50));
 
   // 模拟 Delete 键
   editor.dispatchEvent(
@@ -86,11 +74,11 @@ async function typeText(editor, text, perCharDelay = 20) {
   await new Promise(r => setTimeout(r, 50));
 
   for (let char of text) {
-    // 使用 execCommand 插入文本，更可靠触发 Lexical 内部监听
     try {
       document.execCommand('insertText', false, char);
     } catch (e) {
-      // fallback：直接修改 DOM 并触发 InputEvent
+     console.log('insertText failed, falling back to textContent');
+     console.error(e);
       editor.textContent += char;
       editor.dispatchEvent(new InputEvent('input', {
         bubbles: true,
@@ -98,31 +86,25 @@ async function typeText(editor, text, perCharDelay = 20) {
         data: char
       }));
     }
-
     await new Promise(r => setTimeout(r, perCharDelay));
   }
-
-  // 给编辑器一点时间处理最后一个字符
   await new Promise(r => setTimeout(r, 30));
 }
 
-window.replaceAndSend = async function(text, bypassTranslation = false) {
-  const editor = getLexicalEditor();
-  if (!editor) return;
+window.replaceAndSend = async function(text){
+  console.log('替换并发送:', text);
+  const editor = getTelegramEditor();
+  if (!editor) {
+    console.warn('找不到编辑器，无法发送消息');
+    return;
+  }
+
+  await clearOriginalText();
+  await typeText(editor, text);
 
   state.bypassIntercept = true;
 
-  if (!bypassTranslation) {
-    // 需要替换文本（翻译场景）
-    await clearOriginalText();
-    await typeText(editor, text);
-  }
-
-  // 触发发送
-  const sendBtn = document.querySelector(
-    "button[aria-label='发送'], button[aria-label='Send'], button[title='Send'], button[data-testid='send']"
-  );
-
+  const sendBtn = document.querySelector('button.btn-send');
   if (sendBtn) {
     sendBtn.click();
   } else {
@@ -136,7 +118,6 @@ window.replaceAndSend = async function(text, bypassTranslation = false) {
     );
   }
 
-  // 恢复拦截状态
   setTimeout(() => {
     state.bypassIntercept = false;
   }, 50);
@@ -156,7 +137,7 @@ async function translateText(text) {
 
 // ====== 获取编辑器位置信息 ======
 function getEditorPosition() {
-  const editor = getLexicalEditor();
+  const editor = getTelegramEditor();
   if (!editor) return { bottom: 100, left: "50%" };
 
   const rect = editor.getBoundingClientRect();
@@ -197,9 +178,7 @@ function showTranslatePreview(rawText) {
     <div style="position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 9px solid #e1e5e9; z-index: 0;"></div>
     <div style="margin-bottom: 12px;">
       <div style="color: #65676b; font-size: 12px; margin-bottom: 4px;">原文</div>
-      <div style="padding: 8px; background: #f7f8fa; border-radius: 6px; color: #1c1e21;">\${escapeHtml(
-        rawText
-      )}</div>
+      <div style="padding: 8px; background: #f7f8fa; border-radius: 6px; color: #1c1e21;">\${escapeHtml(rawText)}</div>
     </div>
     <div style="margin-bottom: 16px;">
       <div style="color: #65676b; font-size: 12px; margin-bottom: 4px;">翻译预览</div>
@@ -323,11 +302,7 @@ function closePreview() {
   if (!state.pendingPreview) return;
 
   if (state.pendingPreview.globalKeyHandler) {
-    document.removeEventListener(
-      "keydown",
-      state.pendingPreview.globalKeyHandler,
-      true
-    );
+    document.removeEventListener("keydown", state.pendingPreview.globalKeyHandler, true);
   }
 
   try {
@@ -351,7 +326,7 @@ function escapeHtml(text) {
 
 // ====== 拦截发送 ======
 function interceptSendAction() {
-  const editor = getLexicalEditor();
+  const editor = getTelegramEditor();
   if (!editor) return;
 
   const rawText = editor.innerText.trim();
@@ -359,9 +334,8 @@ function interceptSendAction() {
 
   const config = getConfig();
 
-  // 当autoTranslateSend为假时，直接发送原文
-  if (!config.autoTranslateSend) {
-    replaceAndSend(rawText, true); // bypassTranslation=true，直接触发Enter
+  if (!pluginConfig?.translation?.autoTranslateSend) {
+    console.log('未启用发送翻译，直接发送');
     return;
   }
 
@@ -375,19 +349,16 @@ function interceptSendAction() {
     return;
   }
 
-  // 当autoTranslateSend为真，preview为真时，启动翻译预览
-  if (window.pluginConfig?.translation.preview) {
-    console.log('显示翻译预览',window.pluginConfig?.translation.preview);
+  if (pluginConfig?.translation?.preview) {
+    console.log('显示翻译预览',pluginConfig.translation.preview);
     showTranslatePreview(rawText);
   } else {
-    console.log('直接发送翻译内容',window.pluginConfig?.translation.preview);
-
-    // 当autoTranslateSend为真，preview为假时，直接发送翻译的内容
+    console.log('直接发送',pluginConfig.translation.preview);
     translateText(rawText).then((translatedText) => {
       replaceAndSend(translatedText);
     }).catch((err) => {
       console.error('翻译失败，发送原文:', err);
-      replaceAndSend(rawText, true); // 翻译失败时直接发送原文
+      replaceAndSend(rawText);
     });
   }
 }
@@ -401,6 +372,11 @@ function attachToEditor(el) {
     "keydown",
     (e) => {
       if (e.key === "Enter" && !e.shiftKey && !state.bypassIntercept) {
+
+        if (!pluginConfig?.translation?.autoTranslateSend) {
+          // 如果未启用自动翻译，不拦截，让 Telegram 原生逻辑处理
+          return;
+        }
         e.preventDefault();
         e.stopImmediatePropagation();
         interceptSendAction();
@@ -412,15 +388,18 @@ function attachToEditor(el) {
 
 function bindSendButton() {
   function tryBind() {
-    const sendBtn = document.querySelector(
-      "button[aria-label='发送'], button[aria-label='Send'], button[title='Send'], button[data-testid='send']"
-    );
+    const sendBtn = document.querySelector('button.btn-send');
     if (sendBtn && !sendBtn._boundByScript) {
       sendBtn._boundByScript = true;
       sendBtn.addEventListener(
         "click",
         (e) => {
           if (!state.bypassIntercept) {
+            const config = getConfig();
+            if (!pluginConfig?.translation?.autoTranslateSend) {
+              // 如果未启用自动翻译，不拦截
+              return;
+            }
             e.preventDefault();
             e.stopImmediatePropagation();
             interceptSendAction();
@@ -438,11 +417,11 @@ function bindSendButton() {
 }
 
 function ensureBindings() {
-  const el = getLexicalEditor();
+  const el = getTelegramEditor();
   if (el) attachToEditor(el);
 
   new MutationObserver(() => {
-    const ed = getLexicalEditor();
+    const ed = getTelegramEditor();
     if (ed) attachToEditor(ed);
   }).observe(document.body, { childList: true, subtree: true });
 }
@@ -451,8 +430,10 @@ function ensureBindings() {
 function init() {
   ensureBindings();
   bindSendButton();
-  document.addEventListener("click", e => { if (state.pendingPreview && !state.pendingPreview.node.contains(e.target)) closePreview(); });
-  console.log("翻译拦截脚本已初始化");
+  document.addEventListener("click", e => {
+    if (state.pendingPreview && !state.pendingPreview.node.contains(e.target)) closePreview();
+  });
+  console.log("Telegram 翻译拦截脚本已初始化");
   window.addEventListener("message", (event) => {
     if (event.data?.type === "sendText") {
       console.log("收到 Vue 的消息:", event.data.payload);

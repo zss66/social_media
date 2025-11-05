@@ -13,7 +13,9 @@
         <!-- 功能内容区域 -->
         <div class="sidebar-content">
           <!-- 翻译配置 -->
+          <!-- 翻译配置完整模板部分 -->
           <div v-if="activeFunction === 'translation'" class="function-content">
+            <!-- 基础功能开关 -->
             <div class="config-group">
               <div class="config-item">
                 <span class="config-label">独立翻译配置</span>
@@ -22,44 +24,83 @@
                   size="small"
                 />
               </div>
+
+              <!-- 提示信息 -->
+              <el-alert
+                v-if="!translationSettings.independentConfig"
+                type="info"
+                :closable="false"
+                style="margin-top: 8px"
+              >
+                <template #title>
+                  <span style="font-size: 12px"
+                    >当前使用全局配置，参数不可编辑</span
+                  >
+                </template>
+              </el-alert>
+
               <div class="config-item">
                 <span class="config-label">接收自动翻译</span>
                 <el-switch
-                  v-model="translationSettings.autoTranslateReceive"
+                  :model-value="displayTranslationSettings.autoTranslateReceive"
+                  @update:model-value="
+                    updateTranslationSetting('autoTranslateReceive', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
                   size="small"
                 />
               </div>
               <div class="config-item">
                 <span class="config-label">发送自动翻译</span>
                 <el-switch
-                  v-model="translationSettings.autoTranslateSend"
+                  :model-value="displayTranslationSettings.autoTranslateSend"
+                  @update:model-value="
+                    updateTranslationSetting('autoTranslateSend', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
                   size="small"
                 />
               </div>
             </div>
+
+            <!-- 按钮个性化 -->
             <div class="config-group">
               <div class="config-title">按钮个性化</div>
               <div class="config-item">
                 <el-input
-                  v-model="translationSettings.buttonText"
+                  :model-value="displayTranslationSettings.buttonText"
+                  @update:model-value="
+                    updateTranslationSetting('buttonText', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
                   size="small"
                   placeholder="翻译按钮文本"
                   style="width: 100%"
                 />
               </div>
-              <div class="config-item"></div>
-              <el-input
-                v-model="translationSettings.loadingText"
-                size="small"
-                placeholder="翻译加载文本"
-                style="width: 100%"
-              />
+              <div class="config-item">
+                <el-input
+                  :model-value="displayTranslationSettings.loadingText"
+                  @update:model-value="
+                    updateTranslationSetting('loadingText', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
+                  size="small"
+                  placeholder="翻译加载文本"
+                  style="width: 100%"
+                />
+              </div>
             </div>
 
+            <!-- 翻译通道 -->
             <div class="config-group">
               <div class="config-title">翻译通道</div>
               <el-select
-                v-model="translationSettings.channel"
+                :model-value="displayTranslationSettings.channel"
+                @update:model-value="
+                  updateTranslationSetting('channel', $event)
+                "
+                :disabled="!translationSettings.independentConfig"
                 size="small"
                 style="width: 100%"
               >
@@ -69,23 +110,36 @@
               </el-select>
             </div>
 
+            <!-- 目标语言 -->
             <div class="config-group">
               <div class="config-title">目标语言</div>
               <el-select
-                v-model="translationSettings.targetLanguage"
+                :model-value="displayTranslationSettings.targetLanguage"
+                @update:model-value="
+                  updateTranslationSetting('targetLanguage', $event)
+                "
+                :disabled="!translationSettings.independentConfig"
                 size="small"
                 style="width: 100%"
               >
                 <el-option label="英语" value="en" />
                 <el-option label="中文" value="zh" />
                 <el-option label="日语" value="ja" />
+                <el-option label="韩语" value="ko" />
+                <el-option label="法语" value="fr" />
+                <el-option label="西班牙语" value="es" />
               </el-select>
             </div>
 
+            <!-- 源语种 -->
             <div class="config-group">
-              <div class="config-title">自翻语种</div>
+              <div class="config-title">源语种</div>
               <el-select
-                v-model="translationSettings.sourceLanguage"
+                :model-value="displayTranslationSettings.sourceLanguage"
+                @update:model-value="
+                  updateTranslationSetting('sourceLanguage', $event)
+                "
+                :disabled="!translationSettings.independentConfig"
                 size="small"
                 style="width: 100%"
               >
@@ -94,26 +148,99 @@
               </el-select>
             </div>
 
+            <!-- 缓存管理 -->
             <div class="config-group">
-              <div
-                class="config-item"
-                v-if="translationSettings.autoTranslateSend"
-              >
-                <span class="config-label">翻译预览</span>
-                <el-switch v-model="translationSettings.preview" size="small" />
+              <div class="config-title">缓存管理</div>
+              <div class="config-item">
+                <span class="config-label">最大缓存条数</span>
+                <el-input-number
+                  :model-value="displayTranslationSettings.maxCacheSize"
+                  @update:model-value="
+                    updateTranslationSetting('maxCacheSize', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
+                  :min="100"
+                  :max="5000"
+                  size="small"
+                  style="width: 100%"
+                />
               </div>
               <div class="config-item">
-                <span class="config-label">接收语音自动翻译</span>
+                <span class="config-label">缓存有效期</span>
+                <el-select
+                  :model-value="displayTranslationSettings.cacheExpireMs"
+                  @update:model-value="
+                    updateTranslationSetting('cacheExpireMs', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
+                  size="small"
+                  style="width: 100%"
+                >
+                  <el-option label="7天" :value="7 * 24 * 60 * 60 * 1000" />
+                  <el-option label="30天" :value="30 * 24 * 60 * 60 * 1000" />
+                  <el-option label="90天" :value="90 * 24 * 60 * 60 * 1000" />
+                  <el-option label="180天" :value="180 * 24 * 60 * 60 * 1000" />
+                  <el-option label="永久" :value="0" />
+                </el-select>
+              </div>
+              <div class="config-item">
+                <span class="config-label">翻译后隐藏按钮</span>
                 <el-switch
-                  v-model="translationSettings.autoVoice"
+                  :model-value="
+                    displayTranslationSettings.hideButtonAfterTranslate
+                  "
+                  @update:model-value="
+                    updateTranslationSetting('hideButtonAfterTranslate', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
+                  size="small"
+                />
+              </div>
+              <div class="config-item">
+                <span class="config-label">清除缓存</span>
+                <el-switch
+                  :model-value="displayTranslationSettings.deleteCache"
+                  @update:model-value="
+                    updateTranslationSetting('deleteCache', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
                   size="small"
                 />
               </div>
             </div>
 
-            <!-- 原文输入区域 -->
+            <!-- 高级功能 -->
+            <div class="config-group">
+              <div
+                class="config-item"
+                v-if="displayTranslationSettings.autoTranslateSend"
+              >
+                <span class="config-label">翻译预览</span>
+                <el-switch
+                  :model-value="displayTranslationSettings.preview"
+                  @update:model-value="
+                    updateTranslationSetting('preview', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
+                  size="small"
+                />
+              </div>
+              <div class="config-item">
+                <span class="config-label">接收语音自动翻译</span>
+                <el-switch
+                  :model-value="displayTranslationSettings.autoVoice"
+                  @update:model-value="
+                    updateTranslationSetting('autoVoice', $event)
+                  "
+                  :disabled="!translationSettings.independentConfig"
+                  size="small"
+                />
+              </div>
+            </div>
+
+            <!-- 原文输入区域 - 这部分始终可用 -->
             <div
-              v-if="!translationSettings.autoTranslateSend"
+              v-if="!displayTranslationSettings.autoTranslateSend"
               class="config-group"
             >
               <div class="config-title">原文输入</div>
@@ -137,10 +264,10 @@
               </div>
             </div>
 
-            <!-- 翻译预览区域 -->
+            <!-- 翻译预览区域 - 这部分始终可用 -->
             <div
               v-if="
-                !translationSettings.autoTranslateSend &&
+                !displayTranslationSettings.autoTranslateSend &&
                 translationSettings.translatedText
               "
               class="config-group"
@@ -151,8 +278,7 @@
                 :rows="3"
                 class="auto-resize-textarea"
                 placeholder="翻译结果将显示在这里..."
-              >
-              </textarea>
+              ></textarea>
 
               <div class="action-buttons">
                 <el-button size="small" @click="retranslateText"
@@ -179,49 +305,222 @@
               <div class="note-item">2. 第二次点击或点击发送，发送翻译内容</div>
             </div>
           </div>
-
-          <!-- 代理设置 -->
-          <div v-else-if="activeFunction === 'proxy'" class="function-content">
+          <!-- 知识库配置 - 新增 -->
+          <div
+            v-else-if="activeFunction === 'knowledge'"
+            class="function-content"
+          >
+            <!-- 知识库选择 -->
             <div class="config-group">
-              <div class="config-item">
-                <span class="config-label">启用代理</span>
-                <el-switch v-model="proxySettings.enabled" size="small" />
+              <div class="config-title">
+                <span>选择知识库</span>
+                <el-button text size="small" @click="refreshKnowledgeBases">
+                  <el-icon><Refresh /></el-icon>
+                  刷新
+                </el-button>
+              </div>
+
+              <el-select
+                v-model="knowledgeSettings.selectedKnowledgeBase"
+                placeholder="请选择知识库"
+                size="small"
+                style="width: 100%"
+                @change="handleKnowledgeBaseChange"
+                clearable
+              >
+                <el-option
+                  v-for="kb in knowledgeBases"
+                  :key="kb.id"
+                  :label="kb.name"
+                  :value="kb.id"
+                >
+                  <div class="kb-option">
+                    <span>{{ kb.name }}</span>
+                    <el-tag size="small" type="info">
+                      {{ kb.document_count || 0 }} 文档
+                    </el-tag>
+                  </div>
+                </el-option>
+              </el-select>
+
+              <!-- 知识库状态提示 -->
+              <el-alert
+                v-if="knowledgeSettings.selectedKnowledgeBase"
+                type="success"
+                :closable="false"
+                style="margin-top: 8px"
+              >
+                <template #title>
+                  <span style="font-size: 12px">
+                    当前会话已启用知识库增强
+                  </span>
+                </template>
+              </el-alert>
+              <el-alert
+                v-else
+                type="info"
+                :closable="false"
+                style="margin-top: 8px"
+              >
+                <template #title>
+                  <span style="font-size: 12px">
+                    未选择知识库，使用默认对话模式
+                  </span>
+                </template>
+              </el-alert>
+            </div>
+
+            <!-- 知识库详情 -->
+            <div v-if="currentKnowledgeBaseDetails" class="config-group">
+              <div class="config-title">知识库详情</div>
+              <div class="kb-details">
+                <div class="detail-item">
+                  <span class="detail-label">名称：</span>
+                  <span class="detail-value">{{
+                    currentKnowledgeBaseDetails.name
+                  }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">文档数：</span>
+                  <span class="detail-value">{{
+                    currentKnowledgeBaseDetails.document_count || 0
+                  }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">分块数：</span>
+                  <span class="detail-value">{{
+                    currentKnowledgeBaseDetails.total_chunks || 0
+                  }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">嵌入模型：</span>
+                  <el-tag size="small" type="info">
+                    {{ currentKnowledgeBaseDetails.embedding_model || "N/A" }}
+                  </el-tag>
+                </div>
+                <div
+                  class="detail-item"
+                  v-if="currentKnowledgeBaseDetails.description"
+                >
+                  <span class="detail-label">描述：</span>
+                  <span class="detail-value">{{
+                    currentKnowledgeBaseDetails.description
+                  }}</span>
+                </div>
               </div>
             </div>
 
-            <template v-if="proxySettings.enabled">
-              <div class="config-group">
-                <div class="config-title">代理类型</div>
-                <el-select
-                  v-model="proxySettings.type"
-                  size="small"
-                  style="width: 100%"
-                >
-                  <el-option label="HTTP" value="http" />
-                  <el-option label="SOCKS5" value="socks5" />
-                </el-select>
-              </div>
+            <!-- 检索配置 -->
+            <div class="config-group">
+              <div class="config-title">检索配置</div>
 
-              <div class="config-group">
-                <div class="config-title">代理地址</div>
-                <el-input
-                  v-model="proxySettings.host"
+              <div class="config-item">
+                <span class="config-label">启用检索</span>
+                <el-switch
+                  v-model="knowledgeSettings.enableRetrieval"
                   size="small"
-                  placeholder="127.0.0.1"
+                  :disabled="!knowledgeSettings.selectedKnowledgeBase"
                 />
               </div>
 
-              <div class="config-group">
-                <div class="config-title">端口</div>
+              <div class="config-item">
+                <span class="config-label">返回结果数</span>
                 <el-input-number
-                  v-model="proxySettings.port"
-                  size="small"
-                  style="width: 100%"
+                  v-model="knowledgeSettings.topK"
                   :min="1"
-                  :max="65535"
+                  :max="10"
+                  size="small"
+                  :disabled="!knowledgeSettings.enableRetrieval"
                 />
               </div>
-            </template>
+
+              <div class="config-item">
+                <div class="config-label">相似度阈值</div>
+                <el-slider
+                  v-model="knowledgeSettings.similarityThreshold"
+                  :min="0"
+                  :max="1"
+                  :step="0.1"
+                  :disabled="!knowledgeSettings.enableRetrieval"
+                  show-input
+                  :show-input-controls="false"
+                  style="margin-top: 8px; flex: 1; margin-left: 20px"
+                />
+              </div>
+            </div>
+
+            <!-- 快捷搜索测试 -->
+            <div class="config-group">
+              <div class="config-title">快捷搜索测试</div>
+              <el-input
+                v-model="knowledgeSettings.searchQuery"
+                placeholder="输入搜索内容测试知识库"
+                size="small"
+                clearable
+              >
+                <template #append>
+                  <el-button
+                    :icon="Search"
+                    @click="testKnowledgeSearch"
+                    :loading="searching"
+                    :disabled="!knowledgeSettings.selectedKnowledgeBase"
+                  />
+                </template>
+              </el-input>
+
+              <!-- 搜索结果预览 -->
+              <div
+                v-if="searchResults.length > 0"
+                class="search-results-preview"
+              >
+                <div class="results-header">
+                  <span>找到 {{ searchResults.length }} 条结果</span>
+                  <el-button text size="small" @click="clearSearchResults">
+                    清除
+                  </el-button>
+                </div>
+                <div class="results-list">
+                  <div
+                    v-for="(result, index) in searchResults.slice(0, 3)"
+                    :key="index"
+                    class="result-item"
+                  >
+                    <div class="result-header">
+                      <el-tag size="small" type="success">
+                        {{ (result.similarity_score * 100).toFixed(1) }}%
+                      </el-tag>
+                    </div>
+                    <div class="result-content">
+                      {{ result.content.substring(0, 100) }}...
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 快捷操作 -->
+            <div class="config-group">
+              <div class="config-title">快捷操作</div>
+              <div class="quick-actions">
+                <el-button
+                  size="small"
+                  @click="openKnowledgeManager"
+                  :icon="FolderOpened"
+                >
+                  管理知识库
+                </el-button>
+              </div>
+            </div>
+
+            <!-- 使用说明 -->
+            <div class="usage-note">
+              <div class="note-title">💡 使用提示：</div>
+              <div class="note-item">
+                • 选择知识库后，对话将自动检索相关内容
+              </div>
+              <div class="note-item">• 可调整检索参数以获得最佳效果</div>
+              <div class="note-item">• 使用快捷搜索测试知识库内容</div>
+            </div>
           </div>
 
           <!-- 群发设置 -->
@@ -631,14 +930,21 @@
 
         <!-- 底部应用按钮 -->
         <div class="sidebar-footer">
-          <el-button
-            type="primary"
-            size="small"
-            style="width: 100%"
-            @click="applySettings"
+          <el-tooltip
+            :content="applyButtonTooltip"
+            placement="top"
+            :disabled="!isApplyButtonDisabled"
           >
-            应用
-          </el-button>
+            <el-button
+              type="primary"
+              size="small"
+              style="width: 100%"
+              @click="applySettings"
+              :disabled="isApplyButtonDisabled"
+            >
+              应用
+            </el-button>
+          </el-tooltip>
         </div>
       </div>
 
@@ -656,19 +962,17 @@
             </el-icon>
             <el-text class="icon-text">翻译设置</el-text>
           </div>
-
-          <!-- 代理功能图标 -->
+          <!-- 知识库功能图标 - 新增 -->
           <div
             class="function-icon"
-            :class="{ active: activeFunction === 'proxy' }"
-            @click="setActiveFunction('proxy')"
+            :class="{ active: activeFunction === 'knowledge' }"
+            @click="setActiveFunction('knowledge')"
           >
             <el-icon :size="20">
-              <Connection />
+              <Reading />
             </el-icon>
-            <el-text class="icon-text">代理设置</el-text>
+            <el-text class="icon-text">知识库</el-text>
           </div>
-
           <!-- 群发功能图标 -->
           <div
             class="function-icon"
@@ -776,9 +1080,10 @@
 <script setup>
 import { ref, reactive, computed, nextTick, onMounted, watch } from "vue";
 import { ElMessage } from "element-plus";
+import axios from "axios";
+import { useStore } from "vuex"; // ✅ 引入 Vuex
 import {
   ChatDotRound,
-  Connection,
   Promotion,
   DataAnalysis,
   Setting,
@@ -788,20 +1093,51 @@ import {
   User,
   Plus,
   Delete,
+  Reading,
+  Refresh,
+  Search,
+  FolderOpened,
+  Document,
+  Upload,
 } from "@element-plus/icons-vue";
+// API配置
+const API_BASE_URL = process.env.VUE_APP_API_BASE_URL;
+const USER_ID = process.env.VUE_APP_USER_ID;
+// ✅ 使用 Vuex Store
+const store = useStore();
+
+// Props 定义 - 移除 globalSettings
+const props = defineProps({
+  visible: { type: Boolean, default: true },
+  defaultSettings: { type: Object, default: () => ({}) },
+});
+
+const emit = defineEmits(["save", "sendtext", "close"]);
 
 // 响应式数据
 const isExpanded = ref(false);
 const activeFunction = ref("translation");
 const oldactiveFunction = ref("translation");
+const searching = ref(false);
 
-const props = defineProps({
-  visible: { type: Boolean, default: true },
-  defaultSettings: { type: Object, default: () => ({}) }, // 接收 pluginConfig
+// 知识库相关数据
+const knowledgeBases = computed(
+  () => store.getters["knowledge/allKnowledgeBases"]
+);
+const searchResults = ref([]);
+const currentKnowledgeBaseDetails = ref(null);
+
+// 知识库设置
+const knowledgeSettings = reactive({
+  user_id: process.env.VUE_APP_USER_ID,
+  selectedKnowledgeBase: null,
+  enableRetrieval: true,
+  topK: 3,
+  similarityThreshold: 0.3,
+  searchQuery: "",
 });
 
-const emit = defineEmits(["save","sendtext", "close"]);
-// 各功能设置
+// 翻译设置
 const translationSettings = reactive({
   independentConfig: true,
   buttonText: "🌐点击翻译",
@@ -815,15 +1151,133 @@ const translationSettings = reactive({
   autoVoice: false,
   originalText: "",
   translatedText: "",
+  maxCacheSize: 500,
+  cacheExpireMs: 30 * 24 * 60 * 60 * 1000,
+  hideButtonAfterTranslate: true,
+  deleteCache: false,
 });
 
-const proxySettings = reactive({
-  enabled: false,
-  type: "http",
-  host: "127.0.0.1",
-  port: 8080,
+// ✅ 从 Vuex 获取全局设置
+const globalSettings = computed(
+  () => store.state.settings || store.getters.getSettings
+);
+// ✅ 计算属性：是否应该禁用应用按钮
+const isApplyButtonDisabled = computed(() => {
+  if (activeFunction.value === "translation") {
+    // 翻译功能：未启用独立配置时禁用应用按钮
+    return !translationSettings.independentConfig;
+  }
+  // 其他功能始终可应用
+  return false;
 });
 
+// ✅ 计算属性：应用按钮的提示文本
+const applyButtonTooltip = computed(() => {
+  if (
+    activeFunction.value === "translation" &&
+    !translationSettings.independentConfig
+  ) {
+    return "当前使用全局配置，如需自定义请先开启独立配置";
+  }
+  return "应用当前设置";
+});
+
+// ✅ 监听独立配置开关变化，自动保存状态
+
+watch(
+  () => translationSettings.independentConfig,
+  async (newValue, oldValue) => {
+    if (newValue !== oldValue) {
+      if (newValue) {
+        // ✅ 切换到独立配置：复制全局配置到本地（保持不变）
+        const globalTranslation = globalSettings.value?.translation || {};
+        const localFields = {
+          originalText: translationSettings.originalText,
+          translatedText: translationSettings.translatedText,
+          deleteCache: translationSettings.deleteCache,
+          independentConfig: true,
+        };
+
+        Object.keys(globalTranslation).forEach((key) => {
+          if (
+            translationSettings.hasOwnProperty(key) &&
+            key !== "independentConfig"
+          ) {
+            translationSettings[key] = globalTranslation[key];
+          }
+        });
+
+        Object.assign(translationSettings, localFields);
+        ElMessage.success("已启用独立翻译配置，当前值已从全局配置复制");
+
+        // ✅ 保存完整的独立配置
+        emit("save", {
+          activeFunction: "translation",
+          translation: { ...translationSettings },
+        });
+      } else {
+        // ✅ 修复：切换到全局配置时，保存完整配置 + 状态标识
+        ElMessage.info("已切换到全局配置，参数将同步全局设置");
+
+        // 保存完整的 translationSettings 对象 + 独立配置状态
+        emit("save", {
+          activeFunction: "translation",
+          translation: {
+            ...displayTranslationSettings.value, // ✅ 保存所有字段
+            independentConfig: false, // 只修改状态标识
+          },
+        });
+      }
+    }
+  }
+);
+// ✅ 计算属性：根据是否独立配置决定显示哪个设置
+const displayTranslationSettings = computed(() => {
+  if (translationSettings.independentConfig) {
+    // 使用独立配置
+    return translationSettings;
+  } else {
+    // 使用全局配置
+    const globalTranslation = globalSettings.value?.settings?.translation || {};
+    console.log("全局翻译参数", globalTranslation);
+    console.log("全局配置参数", globalSettings.value);
+    return {
+      independentConfig: translationSettings.independentConfig,
+      // 本地特有字段始终使用本地值
+      originalText: translationSettings.originalText,
+      translatedText: translationSettings.translatedText,
+      deleteCache: translationSettings.deleteCache,
+      // 其他字段使用全局配置
+      autoTranslateReceive: globalTranslation.autoTranslateReceive ?? true,
+      autoTranslateSend: globalTranslation.autoTranslateSend ?? true,
+      buttonText: globalTranslation.buttonText || "🌐点击翻译",
+      loadingText: globalTranslation.loadingText || "翻译中...",
+      channel: globalTranslation.channel || "google",
+      targetLanguage: globalTranslation.targetLanguage || "en",
+      sourceLanguage: globalTranslation.sourceLanguage || "zh-CN",
+      preview: globalTranslation.preview ?? false,
+      autoVoice: globalTranslation.autoVoice ?? false,
+      maxCacheSize: globalTranslation.maxCacheSize || 500,
+      cacheExpireMs:
+        globalTranslation.cacheExpireMs || 30 * 24 * 60 * 60 * 1000,
+      hideButtonAfterTranslate:
+        globalTranslation.hideButtonAfterTranslate ?? true,
+      apiKey: globalTranslation.apiKey || "",
+      autoDetect: globalTranslation.autoDetect ?? true,
+    };
+  }
+});
+
+// ✅ 更新翻译设置的方法
+const updateTranslationSetting = (key, value) => {
+  if (translationSettings.independentConfig) {
+    translationSettings[key] = value;
+  } else {
+    ElMessage.warning("请先开启独立翻译配置");
+  }
+};
+
+// 其他设置保持不变
 const broadcastSettings = reactive({
   enabled: false,
   interval: 5,
@@ -837,7 +1291,6 @@ const systemSettings = reactive({
   theme: "auto",
 });
 
-// 快速回复设置
 const quickReplySettings = reactive({
   categories: [
     {
@@ -861,7 +1314,6 @@ const quickReplySettings = reactive({
 
 const selectedCategory = ref(0);
 
-// 个人画像设置 - 完整参数
 const profileSettings = reactive({
   basic_info: {
     name: "",
@@ -886,7 +1338,6 @@ const profileSettings = reactive({
   ],
 });
 
-// 表单验证规则
 const profileRules = reactive({
   "basic_info.name": [
     { required: true, message: "请输入姓名", trigger: "blur" },
@@ -918,7 +1369,6 @@ const needsRules = [
   { required: true, message: "请输入需求或痛点", trigger: "blur" },
 ];
 
-// 辅助变量
 const frequentWordsInput = ref("");
 const showTagDialog = ref(false);
 const newTag = reactive({
@@ -960,7 +1410,7 @@ const setActiveFunction = (func) => {
 const getFunctionTitle = (func) => {
   const titleMap = {
     translation: "翻译配置",
-    proxy: "代理设置",
+    knowledge: "知识库配置",
     broadcast: "群发设置",
     quickReply: "快速回复",
     profile: "个人画像",
@@ -995,11 +1445,15 @@ const translateText = async () => {
     ElMessage.warning("请输入原文");
     return;
   }
+
+  // 使用当前显示的配置进行翻译
+  const config = displayTranslationSettings.value;
+
   if (window.electronAPI?.translateText) {
     const translated = await window.electronAPI.translateText(
       translationSettings.originalText,
-      translationSettings.channel,
-      translationSettings.targetLanguage
+      config.channel,
+      config.targetLanguage
     );
     console.log(translated);
     translationSettings.translatedText = translated.translatedText;
@@ -1020,7 +1474,6 @@ const sendTranslatedText = () => {
   }
   emit("sendtext", translationSettings.translatedText);
   ElMessage.success(`发送翻译内容: ${translationSettings.translatedText}`);
-  
 };
 
 // 快速回复相关方法
@@ -1051,6 +1504,85 @@ const deleteCategory = (index) => {
   }
 };
 
+// 知识库相关方法
+const loadKnowledgeBases = async (force = false) => {
+  try {
+    await store.dispatch("knowledge/loadKnowledgeBases", { force });
+  } catch (error) {
+    console.error("加载知识库失败:", error);
+    ElMessage.error("加载知识库列表失败");
+  }
+};
+
+const refreshKnowledgeBases = async () => {
+  ElMessage.info("正在刷新知识库列表...");
+  await loadKnowledgeBases(true); // 强制刷新
+  ElMessage.success("知识库列表已刷新");
+};
+
+const handleKnowledgeBaseChange = async (kbId) => {
+  if (!kbId) {
+    currentKnowledgeBaseDetails.value = null;
+    return;
+  }
+
+  try {
+    const details = await store.dispatch(
+      "knowledge/getKnowledgeBaseDetails",
+      kbId
+    );
+    currentKnowledgeBaseDetails.value = details;
+    ElMessage.success("知识库已切换");
+  } catch (error) {
+    console.error("获取知识库详情失败:", error);
+    ElMessage.error("获取知识库详情失败");
+  }
+};
+
+const testKnowledgeSearch = async () => {
+  if (!knowledgeSettings.searchQuery.trim()) {
+    ElMessage.warning("请输入搜索内容");
+    return;
+  }
+
+  searching.value = true;
+  try {
+    const results = await store.dispatch("knowledge/searchKnowledgeBase", {
+      kbId: knowledgeSettings.selectedKnowledgeBase,
+      searchParams: {
+        query: knowledgeSettings.searchQuery,
+        knowledge_base_id: knowledgeSettings.selectedKnowledgeBase,
+        top_k: knowledgeSettings.topK,
+        similarity_threshold: knowledgeSettings.similarityThreshold,
+      },
+    });
+
+    searchResults.value = results || [];
+    if (searchResults.value.length === 0) {
+      ElMessage.info("未找到相关结果");
+    } else {
+      ElMessage.success(`找到 ${searchResults.value.length} 条结果`);
+    }
+  } catch (error) {
+    console.error("搜索失败:", error);
+    ElMessage.error("搜索失败");
+  } finally {
+    searching.value = false;
+  }
+};
+
+const clearSearchResults = () => {
+  searchResults.value = [];
+  knowledgeSettings.searchQuery = "";
+};
+
+// ✅ 修改：打开知识库管理器
+const openKnowledgeManager = () => {
+  // 使用 Vuex action 打开知识库弹窗
+  store.dispatch("knowledge/openKnowledgeDialog");
+  ElMessage.info("正在打开知识库管理页面");
+};
+
 const addQuickReply = () => {
   if (
     selectedCategory.value !== -1 &&
@@ -1075,16 +1607,16 @@ const deleteQuickReply = (index) => {
 };
 
 const sendQuickReply = (reply, translate) => {
+  const config = displayTranslationSettings.value;
+
   if (translate) {
-    if(window.electronAPI?.translateText){
-      window.electronAPI.translateText(
-        reply.text,
-        translationSettings.channel,
-        translationSettings.targetLanguage
-      ).then((translated) => {
-        emit("sendtext", translated.translatedText);
-        ElMessage.success(`翻译发送: ${translated.translatedText}`);
-      });
+    if (window.electronAPI?.translateText) {
+      window.electronAPI
+        .translateText(reply.text, config.channel, config.targetLanguage)
+        .then((translated) => {
+          emit("sendtext", translated.translatedText);
+          ElMessage.success(`翻译发送: ${translated.translatedText}`);
+        });
     }
   } else {
     emit("sendtext", reply.text);
@@ -1162,67 +1694,92 @@ const getTagType = (category) => {
   return typeMap[category] || "";
 };
 
+// ✅ 修改 applySettings 方法
 const applySettings = () => {
   const currentFunc = activeFunction.value;
   let valid = true;
   let currentSettings = {};
 
-  // 根据当前激活功能获取对应设置并处理
   switch (currentFunc) {
     case "translation":
+      // ⚠️ 关键修复：检查是否使用全局配置
+      if (!translationSettings.independentConfig) {
+        ElMessage.warning(
+          "当前使用全局配置，无需应用。如需自定义，请开启独立配置开关。"
+        );
+        return;
+      }
+      // 使用独立配置时，保存完整配置
       currentSettings = { ...translationSettings };
-
       break;
-    case "proxy":
-      currentSettings = { ...proxySettings };
-
+    case "knowledge":
+      currentSettings = { ...knowledgeSettings };
       break;
+
     case "broadcast":
       currentSettings = { ...broadcastSettings };
-
       break;
+
     case "quickReply":
       currentSettings = { ...quickReplySettings };
-
       break;
+
     case "profile":
       currentSettings = { ...profileSettings };
-      // 更新频繁词汇
       updateFrequentWords();
       profileForm.value?.validate((isValid) => {
         valid = isValid;
-        if (valid) {
-        } else {
+        if (!valid) {
           ElMessage.error("请检查表单输入");
         }
       });
-      return; // 由于异步验证，直接返回，不执行后续
+      return;
+
     case "analytics":
-      // 数据统计是只读的，无需应用
       ElMessage.info("数据统计无需应用设置");
       return;
+
     case "settings":
       currentSettings = { ...systemSettings };
-
       break;
+
     default:
       ElMessage.warning("未知功能设置");
       return;
   }
+
   if (valid) {
     emit("save", {
       activeFunction: currentFunc,
       [currentFunc]: currentSettings,
     });
+    ElMessage.success("设置已保存");
   }
 };
-onMounted(() => {
-  // 合并默认设置到各 reactive 对象
+
+// ✅ 监听全局设置变化（Vuex 的响应式会自动触发计算属性更新）
+watch(
+  () => globalSettings.value,
+  (newGlobalSettings) => {
+    if (
+      !translationSettings.independentConfig &&
+      newGlobalSettings?.settings?.translation
+    ) {
+      console.log("全局设置已更新，显示值将自动同步");
+    }
+  },
+  { deep: true }
+);
+
+// ✅ 修改 onMounted
+onMounted(async () => {
+  // 加载保存的设置
   if (props.defaultSettings.translation) {
     Object.assign(translationSettings, props.defaultSettings.translation);
   }
-  if (props.defaultSettings.proxy) {
-    Object.assign(proxySettings, props.defaultSettings.proxy);
+  if (props.defaultSettings.knowledge) {
+    console.log("加载知识库默认设置:", props.defaultSettings.knowledge);
+    Object.assign(knowledgeSettings, props.defaultSettings.knowledge);
   }
   if (props.defaultSettings.broadcast) {
     Object.assign(broadcastSettings, props.defaultSettings.broadcast);
@@ -1237,7 +1794,12 @@ onMounted(() => {
     Object.assign(systemSettings, props.defaultSettings.settings);
   }
 
-  // 监听 visible 变化，emit close 如果隐藏
+  // ✅ 从 Vuex 加载知识库列表（默认使用缓存）
+  if (knowledgeBases.value.length === 0) {
+    await loadKnowledgeBases(false); // 不强制刷新，优先使用缓存
+  }
+
+  // 监听 visible 变化
   watch(
     () => props.visible,
     (val) => {
@@ -1267,7 +1829,11 @@ onMounted(() => {
 .sidebar-container.expanded {
   width: 320px;
 }
-
+/* ✅ 添加禁用按钮样式 */
+.sidebar-footer .el-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 /* 左侧工具栏 - 始终显示 */
 .sidebar-toolbar {
   width: 60px;
@@ -1341,7 +1907,7 @@ onMounted(() => {
   width: 260px;
   background: white;
   border: 1px solid #e0e0e0;
-  border-left: none;
+
   border-radius: 0 8px 8px 0;
   box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.05);
   display: flex;
@@ -1460,6 +2026,90 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+/* 知识库选项样式 */
+.kb-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+/* 知识库详情样式 */
+.kb-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.detail-label {
+  color: #909399;
+  min-width: 70px;
+}
+
+.detail-value {
+  color: #606266;
+  flex: 1;
+}
+
+/* 搜索结果预览样式 */
+.search-results-preview {
+  margin-top: 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #666;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.result-item {
+  background: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.result-header {
+  margin-bottom: 4px;
+}
+
+.result-content {
+  color: #606266;
+  line-height: 1.5;
+}
+
+/* 快捷操作样式 */
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quick-actions .el-button {
+  width: 100%;
 }
 
 .category-item {

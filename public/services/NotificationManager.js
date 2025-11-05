@@ -1,229 +1,316 @@
 // NotificationManager.js - 独立的通知管理器模块
 
-const { Notification, ipcMain,nativeImage } = require('electron')
-const path = require('path')
+const { Notification, ipcMain, nativeImage } = require("electron");
+const path = require("path");
 
 class NotificationManager {
   constructor() {
-    this.activeNotifications = new Map() // electronNotificationId -> notificationData
-    this.containerWebviews = new Map() // containerId -> webContentsId
+    this.activeNotifications = new Map(); // electronNotificationId -> notificationData
+    this.containerWebviews = new Map(); // containerId -> webContentsId
     this.interceptSettings = {
       enabled: true,
-      platforms: []
-    }
-    this.mainWindow = null
+      platforms: [],
+    };
+    this.mainWindow = null;
   }
 
   // 初始化并设置IPC处理器
   initialize(mainWindow) {
-    this.setMainWindow(mainWindow)
-    this.setupIPC()
-    console.log('[NotificationManager] Initialized successfully')
+    this.setMainWindow(mainWindow);
+    this.setupIPC();
+    console.log("[NotificationManager] Initialized successfully");
   }
 
   // 设置主窗口引用
   setMainWindow(window) {
-    this.mainWindow = window
+    this.mainWindow = window;
   }
 
   // 设置所有IPC处理器
   setupIPC() {
     // 设置通知拦截
-    ipcMain.handle('setup-notification-intercept', async (event, config) => {
+    ipcMain.handle("setup-notification-intercept", async (event, config) => {
       try {
-        this.updateInterceptSettings(config)
-        console.log('[NotificationManager] Notification intercept setup completed')
-        return { success: true }
+        this.updateInterceptSettings(config);
+        console.log(
+          "[NotificationManager] Notification intercept setup completed"
+        );
+        return { success: true };
       } catch (error) {
-        console.error('[NotificationManager] Failed to setup notification intercept:', error)
-        return { success: false, error: error.message }
+        console.error(
+          "[NotificationManager] Failed to setup notification intercept:",
+          error
+        );
+        return { success: false, error: error.message };
       }
-    })
+    });
 
     // 注册容器webview
-    ipcMain.handle('register-container-webview', async (event, containerId, webContentsId) => {
-      try {
-        this.registerContainerWebview(containerId, webContentsId)
-        return { success: true }
-      } catch (error) {
-        console.error('[NotificationManager] Failed to register container webview:', error)
-        return { success: false, error: error.message }
+    ipcMain.handle(
+      "register-container-webview",
+      async (event, containerId, webContentsId) => {
+        try {
+          this.registerContainerWebview(containerId, webContentsId);
+          return { success: true };
+        } catch (error) {
+          console.error(
+            "[NotificationManager] Failed to register container webview:",
+            error
+          );
+          return { success: false, error: error.message };
+        }
       }
-    })
+    );
 
     // 注销容器webview
-    ipcMain.handle('unregister-container-webview', async (event, containerId) => {
-      try {
-        this.unregisterContainerWebview(containerId)
-        return { success: true }
-      } catch (error) {
-        console.error('[NotificationManager] Failed to unregister container webview:', error)
-        return { success: false, error: error.message }
+    ipcMain.handle(
+      "unregister-container-webview",
+      async (event, containerId) => {
+        try {
+          this.unregisterContainerWebview(containerId);
+          return { success: true };
+        } catch (error) {
+          console.error(
+            "[NotificationManager] Failed to unregister container webview:",
+            error
+          );
+          return { success: false, error: error.message };
+        }
       }
-    })
+    );
 
     // 处理被拦截的通知
-   ipcMain.handle('send-intercepted-notification', async (event, notificationData) => {
-  try {
-    console.log('[NotificationManager] Received intercepted notification:', notificationData)
-    
-    // 发送到渲染进程处理（保持原有逻辑）
-    this.mainWindow.webContents.send('notification-intercepted', notificationData)
-    
-    // 🔥 直接显示原生通知
-    const result = await this.showNativeNotification({
-      title: notificationData.platformId+'->'+notificationData.title || '新消息',
-      body: notificationData.body || '',
-      icon: notificationData.icon || null,
-      silent: false,
-      metadata: notificationData
-    })
-    
-    console.log('[NotificationManager] Native notification result:', result)
-    
-    return { success: true, nativeNotificationResult: result }
-  } catch (error) {
-    console.error('[NotificationManager] Failed to handle intercepted notification:', error)
-    return { success: false, error: error.message }
-  }
-})
+    ipcMain.handle(
+      "send-intercepted-notification",
+      async (event, notificationData) => {
+        try {
+          console.log(
+            "[NotificationManager] Received intercepted notification:",
+            notificationData
+          );
+
+          // 发送到渲染进程处理（保持原有逻辑）
+          this.mainWindow.webContents.send(
+            "notification-intercepted",
+            notificationData
+          );
+
+          // 🔥 直接显示原生通知
+          const result = await this.showNativeNotification({
+            title:
+              notificationData.platformId + "->" + notificationData.title ||
+              "新消息",
+            body: notificationData.body || "",
+            icon: notificationData.icon || null,
+            silent: false,
+            metadata: notificationData,
+          });
+
+          console.log(
+            "[NotificationManager] Native notification result:",
+            result
+          );
+
+          return { success: true, nativeNotificationResult: result };
+        } catch (error) {
+          console.error(
+            "[NotificationManager] Failed to handle intercepted notification:",
+            error
+          );
+          return { success: false, error: error.message };
+        }
+      }
+    );
 
     // 显示原生通知
-    ipcMain.handle('show-native-notification', async (event, notificationData) => {
-      try {
-        const result = await this.showNativeNotification(notificationData)
-        return result
-      } catch (error) {
-        console.error('[NotificationManager] Failed to show native notification:', error)
-        return { success: false, error: error.message }
+    ipcMain.handle(
+      "show-native-notification",
+      async (event, notificationData) => {
+        try {
+          const result = await this.showNativeNotification(notificationData);
+          return result;
+        } catch (error) {
+          console.error(
+            "[NotificationManager] Failed to show native notification:",
+            error
+          );
+          return { success: false, error: error.message };
+        }
       }
-    })
+    );
 
     // 关闭原生通知
-    ipcMain.handle('close-native-notification', async (event, electronNotificationId) => {
-      try {
-        const result = this.closeNativeNotification(electronNotificationId)
-        return result
-      } catch (error) {
-        console.error('[NotificationManager] Failed to close native notification:', error)
-        return { success: false, error: error.message }
+    ipcMain.handle(
+      "close-native-notification",
+      async (event, electronNotificationId) => {
+        try {
+          const result = this.closeNativeNotification(electronNotificationId);
+          return result;
+        } catch (error) {
+          console.error(
+            "[NotificationManager] Failed to close native notification:",
+            error
+          );
+          return { success: false, error: error.message };
+        }
       }
-    })
+    );
 
     // 聚焦窗口
-    ipcMain.handle('focus-window', async (event) => {
+    ipcMain.handle("focus-window", async (event) => {
       try {
-        this.focusMainWindow()
-        return { success: true }
+        this.focusMainWindow();
+        return { success: true };
       } catch (error) {
-        console.error('[NotificationManager] Failed to focus window:', error)
-        return { success: false, error: error.message }
+        console.error("[NotificationManager] Failed to focus window:", error);
+        return { success: false, error: error.message };
       }
-    })
+    });
 
     // 更新通知设置
-    ipcMain.handle('update-notification-settings', async (event, settings) => {
+    ipcMain.handle("update-notification-settings", async (event, settings) => {
       try {
-        this.updateInterceptSettings(settings)
-        return { success: true }
+        this.updateInterceptSettings(settings);
+        return { success: true };
       } catch (error) {
-        console.error('[NotificationManager] Failed to update notification settings:', error)
-        return { success: false, error: error.message }
+        console.error(
+          "[NotificationManager] Failed to update notification settings:",
+          error
+        );
+        return { success: false, error: error.message };
       }
-    })
+    });
 
     // 更新通知拦截状态
-    ipcMain.handle('update-notification-intercept', async (event, config) => {
+    ipcMain.handle("update-notification-intercept", async (event, config) => {
       try {
-        this.updateInterceptSettings(config)
-        return { success: true }
+        this.updateInterceptSettings(config);
+        return { success: true };
       } catch (error) {
-        console.error('[NotificationManager] Failed to update notification intercept:', error)
-        return { success: false, error: error.message }
+        console.error(
+          "[NotificationManager] Failed to update notification intercept:",
+          error
+        );
+        return { success: false, error: error.message };
       }
-    })
+    });
 
     // 关闭所有通知
-    ipcMain.handle('close-all-notifications', async (event) => {
+    ipcMain.handle("close-all-notifications", async (event) => {
       try {
-        const result = this.closeAllNotifications()
-        return result
+        const result = this.closeAllNotifications();
+        return result;
       } catch (error) {
-        console.error('[NotificationManager] Failed to close all notifications:', error)
-        return { success: false, error: error.message }
+        console.error(
+          "[NotificationManager] Failed to close all notifications:",
+          error
+        );
+        return { success: false, error: error.message };
       }
-    })
+    });
 
     // 获取通知统计
-    ipcMain.handle('get-notification-stats', async (event) => {
+    ipcMain.handle("get-notification-stats", async (event) => {
       try {
         return {
           success: true,
           stats: {
             activeCount: this.activeNotifications.size,
             registeredWebviews: this.containerWebviews.size,
-            interceptEnabled: this.interceptSettings.enabled
-          }
-        }
+            interceptEnabled: this.interceptSettings.enabled,
+          },
+        };
       } catch (error) {
-        console.error('[NotificationManager] Failed to get notification stats:', error)
-        return { success: false, error: error.message }
+        console.error(
+          "[NotificationManager] Failed to get notification stats:",
+          error
+        );
+        return { success: false, error: error.message };
       }
-    })
+    });
 
-    console.log('[NotificationManager] IPC handlers registered')
+    console.log("[NotificationManager] IPC handlers registered");
   }
 
   // 注册容器webview
   registerContainerWebview(containerId, webContentsId) {
-    this.containerWebviews.set(containerId, webContentsId)
-    console.log(`[NotificationManager] Registered webview for container: ${containerId}`)
-    
+    this.containerWebviews.set(containerId, webContentsId);
+    console.log(
+      `[NotificationManager] Registered webview for container: ${containerId}`
+    );
+
     // 监听该webview的通知请求
-    this.setupWebviewNotificationIntercept(containerId, webContentsId)
+    this.setupWebviewNotificationIntercept(containerId, webContentsId);
   }
 
   // 注销容器webview
   unregisterContainerWebview(containerId) {
-    this.containerWebviews.delete(containerId)
-    console.log(`[NotificationManager] Unregistered webview for container: ${containerId}`)
+    this.containerWebviews.delete(containerId);
+    console.log(
+      `[NotificationManager] Unregistered webview for container: ${containerId}`
+    );
   }
 
   // 为webview设置通知拦截
   setupWebviewNotificationIntercept(containerId, webContentsId) {
     try {
-      const { webContents } = require('electron')
-      const webview = webContents.fromId(webContentsId)
-      
+      const { webContents } = require("electron");
+      const webview = webContents.fromId(webContentsId);
+
       if (!webview) {
-        console.warn(`[NotificationManager] Webview not found for webContentsId: ${webContentsId}`)
-        return
+        console.warn(
+          `[NotificationManager] Webview not found for webContentsId: ${webContentsId}`
+        );
+        return;
       }
 
-      // 监听webview的通知事件
-      webview.on('did-finish-load', () => {
-        // 延迟注入，确保页面完全加载
-        setTimeout(() => {
-          this.injectNotificationInterceptScript(webview, containerId)
-        }, 2000)
-      })
+      // 🔥 关键修复: 立即检查页面是否已经加载完成
+      const isLoading = webview.isLoading();
+      console.log(`[NotificationManager] Webview loading state: ${isLoading}`);
 
-      // 监听页面导航，重新注入脚本
-      webview.on('did-navigate', () => {
+      if (!isLoading) {
+        // 🔥 页面已经加载完成,立即注入!
+        console.log(
+          `[NotificationManager] Page already loaded, injecting immediately for ${containerId}`
+        );
         setTimeout(() => {
-          this.injectNotificationInterceptScript(webview, containerId)
-        }, 2000)
-      })
+          this.injectNotificationInterceptScript(webview, containerId);
+        }, 100);
+      }
 
-      console.log(`[NotificationManager] Setup notification intercept for webview: ${webContentsId}`)
+      // 监听后续的加载事件(刷新、导航等)
+      webview.on("did-finish-load", () => {
+        console.log(
+          `[NotificationManager] did-finish-load triggered for ${containerId}`
+        );
+        setTimeout(() => {
+          this.injectNotificationInterceptScript(webview, containerId);
+        }, 2000);
+      });
+
+      webview.on("did-navigate", () => {
+        console.log(
+          `[NotificationManager] did-navigate triggered for ${containerId}`
+        );
+        setTimeout(() => {
+          this.injectNotificationInterceptScript(webview, containerId);
+        }, 2000);
+      });
+
+      console.log(
+        `[NotificationManager] Setup notification intercept for webview: ${webContentsId}`
+      );
     } catch (error) {
-      console.error(`[NotificationManager] Failed to setup notification intercept:`, error)
+      console.error(
+        `[NotificationManager] Failed to setup notification intercept:`,
+        error
+      );
     }
   }
 
   // 注入通知拦截脚本到webview
   async injectNotificationInterceptScript(webview, containerId) {
-    if (!this.interceptSettings.enabled) return
+    if (!this.interceptSettings.enabled) return;
 
     const interceptScript = `
       (function() {
@@ -232,21 +319,14 @@ class NotificationManager {
           console.log('[NotificationIntercept] Already injected, skipping...');
           return;
         }
+          
+        
+        // ====== 新增: 存储最新通知 ======
+        window.latestNotification = null;
+        
         // ====== 1. 伪造 visibility & focus ======
-  try {
-    Object.defineProperty(document, "visibilityState", {
-      configurable: true,
-      get: () => "hidden"
-    });
-    Object.defineProperty(document, "hidden", {
-      configurable: true,
-      get: () => true
-    });
-    document.hasFocus = () => false;
-    console.log("📡 已伪造 visibilityState = hidden, hasFocus = false");
-  } catch (e) {
-    console.warn("⚠️ visibility 伪造失败:", e);
-  }
+       
+        document.hasFocus = () =>false;
         window.__notificationInterceptInjected = true;
         
         console.log('[NotificationIntercept] 🚀 Injecting notification intercept...');
@@ -260,27 +340,11 @@ class NotificationManager {
           
           // 生成唯一ID
           const webNotificationId = 'web_notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-          
-          // 自动识别平台
-          const hostname = window.location.hostname;
-          const href = window.location.href;
-          
-          const platformId = hostname.includes('whatsapp') ? 'whatsapp' :
-                            hostname.includes('telegram') ? 'telegram' :
-                            hostname.includes('wetalkapp') ? 'wetalk' :
-                            hostname.includes('discord') ? 'discord' :
-                            hostname.includes('slack') ? 'slack' :
-                            hostname.includes('teams.microsoft') ? 'teams' :
-                            hostname.includes('web.skype') ? 'skype' :
-                            hostname.includes('messenger') ? 'facebook' :
-                            hostname.includes('instagram') ? 'instagram' :
-                            (href.includes('chrome-extension') && href.includes('ophjlpahpchlmihnnnihgmmeilfjmjjc')) ? 'line' :
-                            'unknown';
-          
+          console.log('当前注入的平台为:', window.containerConfig.id);
           // 构建通知数据
           const notificationData = {
             containerId: '${containerId}',
-            platformId: platformId,
+            platformId: window.containerConfig.id,
             title: title || '新消息',
             body: options.body || '',
             icon: options.icon || '',
@@ -293,21 +357,27 @@ class NotificationManager {
             }
           };
           
-          // 发送到主进程
+          // ====== 更新最新通知 ======
+          window.latestNotification = notificationData;
+          console.log('📬 最新通知已保存到 window.latestNotification');
+          
+          // 发送到主进程 - 使用 window.electronAPI
           try {
-            if (typeof require !== 'undefined') {
-              const { ipcRenderer } = require('electron');
-              ipcRenderer.invoke('send-intercepted-notification', notificationData)
+            if (window.electronAPI && window.electronAPI.sendInterceptedNotification) {
+              window.electronAPI.sendInterceptedNotification(notificationData)
                 .then(result => {
                   console.log('[NotificationIntercept] ✅ Sent to main process:', result);
                 })
                 .catch(error => {
                   console.error('[NotificationIntercept] ❌ Failed to send to main process:', error);
                 });
+            } else {
+              console.error('[NotificationIntercept] ❌ window.electronAPI not available');
             }
           } catch (error) {
             console.error('[NotificationIntercept] ❌ IPC communication error:', error);
           }
+            document.hasFocus = () =>true;
           
           // 创建假的Notification对象，保持API兼容性
           const fakeNotification = {
@@ -323,6 +393,7 @@ class NotificationManager {
             
             close() {
               console.log('[NotificationIntercept] Fake notification closed');
+              document.hasFocus = () =>false;
               if (this.onclose) {
                 setTimeout(() => this.onclose(), 0);
               }
@@ -370,27 +441,27 @@ class NotificationManager {
         };
         
         console.log('[NotificationIntercept] ✅ Notification API successfully intercepted');
+        console.log('💡 使用 window.latestNotification 查看最新通知数据');
       })();
-    `
+    `;
 
     try {
-      await webview.executeJavaScript(interceptScript)
-      console.log(`[NotificationManager] ✅ Notification intercept script injected for container: ${containerId}`)
+      await webview.executeJavaScript(interceptScript);
+      console.log(
+        `[NotificationManager] ✅ Notification intercept script injected for container: ${containerId}`
+      );
     } catch (error) {
-      console.error(`[NotificationManager] ❌ Failed to inject intercept script:`, error)
+      console.error(
+        `[NotificationManager] ❌ Failed to inject intercept script:`,
+        error
+      );
     }
   }
 
   // 显示原生通知
   async showNativeNotification(notificationData) {
     try {
-      const {
-        title,
-        body,
-        icon,
-        silent,
-        metadata
-      } = notificationData
+      const { title, body, icon, silent, metadata } = notificationData;
 
       // 创建通知选项
       const notificationOptions = {
@@ -398,182 +469,205 @@ class NotificationManager {
         body,
         silent: silent || false,
         icon: this.resolveIconPath(icon),
-        timeoutType: 'default',
-        urgency: 'normal'
-      }
+        timeoutType: "default",
+        urgency: "normal",
+      };
 
       // 创建原生通知
-      const notification = new Notification(notificationOptions)
-      const electronNotificationId = `electron_notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      const notification = new Notification(notificationOptions);
+      const electronNotificationId = `electron_notif_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
 
       // 存储通知数据
       this.activeNotifications.set(electronNotificationId, {
         notification,
         metadata,
-        createdAt: Date.now()
-      })
+        createdAt: Date.now(),
+      });
 
       // 设置事件监听器
-      notification.on('click', () => {
-        console.log(`[NotificationManager] Notification clicked: ${electronNotificationId}`)
-        this.handleNotificationClick(electronNotificationId, 0)
-      })
+      notification.on("click", () => {
+        console.log(
+          `[NotificationManager] Notification clicked: ${electronNotificationId}`
+        );
+        this.handleNotificationClick(electronNotificationId, 0);
+      });
 
-      notification.on('close', () => {
-        console.log(`[NotificationManager] Notification closed: ${electronNotificationId}`)
-        this.handleNotificationClosed(electronNotificationId)
-      })
+      notification.on("close", () => {
+        console.log(
+          `[NotificationManager] Notification closed: ${electronNotificationId}`
+        );
+        this.handleNotificationClosed(electronNotificationId);
+      });
 
-      notification.on('action', (event, index) => {
-        console.log(`[NotificationManager] Notification action: ${electronNotificationId}, index: ${index}`)
-        this.handleNotificationClick(electronNotificationId, index)
-      })
+      notification.on("action", (event, index) => {
+        console.log(
+          `[NotificationManager] Notification action: ${electronNotificationId}, index: ${index}`
+        );
+        this.handleNotificationClick(electronNotificationId, index);
+      });
 
       // 显示通知
-      notification.show()
+      notification.show();
 
-      console.log(`[NotificationManager] ✅ Native notification shown: ${electronNotificationId}`)
-      
+      console.log(
+        `[NotificationManager] ✅ Native notification shown: ${electronNotificationId}`
+      );
+
       return {
         success: true,
-        notificationId: electronNotificationId
-      }
-
+        notificationId: electronNotificationId,
+      };
     } catch (error) {
-      console.error('[NotificationManager] ❌ Failed to show native notification:', error)
+      console.error(
+        "[NotificationManager] ❌ Failed to show native notification:",
+        error
+      );
       return {
         success: false,
-        error: error.message
-      }
+        error: error.message,
+      };
     }
   }
 
   // 处理通知点击
   handleNotificationClick(electronNotificationId, actionIndex) {
-    const notificationData = this.activeNotifications.get(electronNotificationId)
-    if (!notificationData) return
+    const notificationData = this.activeNotifications.get(
+      electronNotificationId
+    );
+    if (!notificationData) return;
 
     // 发送点击事件到渲染进程
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.webContents.send('notification-clicked', {
+      this.mainWindow.webContents.send("notification-clicked", {
         electronNotificationId,
         actionIndex,
-        metadata: notificationData.metadata
-      })
+        metadata: notificationData.metadata,
+      });
     }
 
     // 聚焦主窗口
-    this.focusMainWindow()
+    this.focusMainWindow();
 
     // 关闭通知
-    this.closeNativeNotification(electronNotificationId)
+    this.closeNativeNotification(electronNotificationId);
   }
 
   // 处理通知关闭
   handleNotificationClosed(electronNotificationId) {
-    const notificationData = this.activeNotifications.get(electronNotificationId)
-    if (!notificationData) return
+    const notificationData = this.activeNotifications.get(
+      electronNotificationId
+    );
+    if (!notificationData) return;
 
     // 发送关闭事件到渲染进程
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.webContents.send('notification-closed', {
+      this.mainWindow.webContents.send("notification-closed", {
         electronNotificationId,
-        metadata: notificationData.metadata
-      })
+        metadata: notificationData.metadata,
+      });
     }
 
     // 清理通知数据
-    this.activeNotifications.delete(electronNotificationId)
+    this.activeNotifications.delete(electronNotificationId);
   }
 
   // 关闭原生通知
   closeNativeNotification(electronNotificationId) {
-    const notificationData = this.activeNotifications.get(electronNotificationId)
+    const notificationData = this.activeNotifications.get(
+      electronNotificationId
+    );
     if (notificationData && notificationData.notification) {
-      notificationData.notification.close()
-      this.activeNotifications.delete(electronNotificationId)
-      console.log(`[NotificationManager] Notification closed: ${electronNotificationId}`)
-      return { success: true }
+      notificationData.notification.close();
+      this.activeNotifications.delete(electronNotificationId);
+      console.log(
+        `[NotificationManager] Notification closed: ${electronNotificationId}`
+      );
+      return { success: true };
     }
-    return { success: false, error: 'Notification not found' }
+    return { success: false, error: "Notification not found" };
   }
 
   // 聚焦主窗口
   focusMainWindow() {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       if (this.mainWindow.isMinimized()) {
-        this.mainWindow.restore()
+        this.mainWindow.restore();
       }
-      this.mainWindow.focus()
-      this.mainWindow.show()
-      
+      this.mainWindow.focus();
+      this.mainWindow.show();
+
       // 在macOS上需要特殊处理
-      if (process.platform === 'darwin') {
-        const { app } = require('electron')
-        app.dock.bounce('informational')
+      if (process.platform === "darwin") {
+        const { app } = require("electron");
+        app.dock.bounce("informational");
       }
-      
-      console.log('[NotificationManager] Main window focused')
+
+      console.log("[NotificationManager] Main window focused");
     }
   }
 
   // 解析图标路径
   resolveIconPath(iconPath) {
-    if (!iconPath) return null
-    if (iconPath?.startsWith('data:image')) {
-    try {
-      return nativeImage.createFromDataURL(iconPath)
-    } catch (e) {
-      console.warn('Invalid base64 icon', e)
-      return null
+    if (!iconPath) return null;
+    if (iconPath?.startsWith("data:image")) {
+      try {
+        return nativeImage.createFromDataURL(iconPath);
+      } catch (e) {
+        console.warn("Invalid base64 icon", e);
+        return null;
+      }
     }
-  }
 
     // 如果是相对路径，转换为绝对路径
-    if (iconPath.startsWith('/')) {
-      return path.join(__dirname, '..', 'public', iconPath)
+    if (iconPath.startsWith("/")) {
+      return path.join(__dirname, "..", "public", iconPath);
     }
-    
+
     // 如果是网络路径，保持原样
-    if (iconPath.startsWith('http')) {
-      return iconPath
+    if (iconPath.startsWith("http")) {
+      return iconPath;
     }
-    
-    return iconPath
+
+    return iconPath;
   }
 
   // 更新拦截设置
   updateInterceptSettings(settings) {
-    this.interceptSettings = { ...this.interceptSettings, ...settings }
-    console.log('[NotificationManager] Intercept settings updated:', this.interceptSettings)
+    this.interceptSettings = { ...this.interceptSettings, ...settings };
+    console.log(
+      "[NotificationManager] Intercept settings updated:",
+      this.interceptSettings
+    );
   }
 
   // 关闭所有通知
   closeAllNotifications() {
-    let closedCount = 0
+    let closedCount = 0;
     this.activeNotifications.forEach((data, id) => {
       if (data.notification) {
-        data.notification.close()
-        closedCount++
+        data.notification.close();
+        closedCount++;
       }
-    })
-    this.activeNotifications.clear()
-    console.log(`[NotificationManager] Closed ${closedCount} notifications`)
-    return { success: true, closedCount }
+    });
+    this.activeNotifications.clear();
+    console.log(`[NotificationManager] Closed ${closedCount} notifications`);
+    return { success: true, closedCount };
   }
 
   // 清理资源
   cleanup() {
-    this.closeAllNotifications()
-    this.containerWebviews.clear()
-    console.log('[NotificationManager] Cleanup completed')
+    this.closeAllNotifications();
+    this.containerWebviews.clear();
+    console.log("[NotificationManager] Cleanup completed");
   }
 }
 
 // 导出单例实例
-const notificationManager = new NotificationManager()
+const notificationManager = new NotificationManager();
 
 module.exports = {
   NotificationManager,
-  notificationManager
-}
+  notificationManager,
+};

@@ -123,6 +123,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  activeTab: {
+    type: String,
+    default: "",
+  },
 });
 
 // Emits
@@ -149,7 +153,7 @@ const getContainerCount = (platformId) => {
 };
 
 const isActiveContainer = (containerId) => {
-  // 这里需要从父组件获取当前活跃的容器ID
+  if (props.activeTab === containerId) return true;
   return false; // 临时返回false，实际应该从props或store获取
 };
 
@@ -357,7 +361,7 @@ const clearAllContainers = async () => {
 }
 
 .container-item.active {
-  background: #3498db;
+  background: #487c9f;
 }
 
 .container-info {

@@ -1,508 +1,211 @@
-// ====== 配置 ======
-function getConfig() {
-  return {
-    targetLanguage:
-      window.pluginConfig?.translation?.targetLanguage ||
-      localStorage.getItem("whatsappTranslationLanguage") ||
-      "zh-CN",
-    sourceLanguage: window.pluginConfig?.translation?.sourceLanguage || "zh-CN",
-    buttonText: window.pluginConfig?.translation?.buttonText || "🌐 翻译",
-    channel: window.pluginConfig?.translation?.channel || "google",
-    autoTranslateReceive:
-      window.pluginConfig?.translation?.autoTranslateReceive || false,
-    autoTranslateSend:
-      window.pluginConfig?.translation?.autoTranslateSend || true,
-    preview:
-      window.pluginConfig?.translation?.preview !== undefined
-        ? window.pluginConfig?.translation?.preview
-        : true,
-    loadingText: window.pluginConfig?.translation?.loadingText || "翻译中...",
-  };
-}
+(async () => {
+  console.log("[telegram getlists] IndexedDB 脚本开始");
 
-// ====== 全局状态 ======
-const state = {
-  pendingPreview: null,
-  bypassIntercept: false,
-};
+  // 自动获取当前账户编号，默认是 1
+  const urlParams = new URLSearchParams(window.location.search);
+  const accountNum = urlParams.get("account") || "1";
+  console.log("[telegram getlists] 当前账户编号:", accountNum);
+  const dbName = "tweb-account-" + accountNum;
 
-// ====== 找编辑器 ======
-function getLexicalEditor() {
-  const cands = [
-    ...document.querySelectorAll(
-      'div[role="textbox"][contenteditable="true"][data-lexical-editor="true"]'
-    ),
-  ].filter((el) => {
-    const al = (el.getAttribute("aria-label") || "").toLowerCase();
-    const ph = (el.getAttribute("aria-placeholder") || "").toLowerCase();
-    if (/搜索|search/.test(al) || /搜索|search/.test(ph)) return false;
-    return true;
-  });
-  if (cands.length === 0) return null;
-  const footerBox = cands.find((el) => el.closest("footer"));
-  if (footerBox) return footerBox;
-  cands.sort(
-    (a, b) =>
-      b.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom
-  );
-  return cands[0];
-}
+  const openReq = indexedDB.open(dbName);
 
-// ====== 清除原始文本 ======
-async function clearOriginalText() {
-  const editor = getLexicalEditor();
-  if (!editor) return false;
+  openReq.onsuccess = function (event) {
+    const db = event.target.result;
 
-  editor.focus();
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
-  // 全选
-  const selection = window.getSelection();
-  selection.removeAllRanges();
-  const range = document.createRange();
-  range.selectNodeContents(editor);
-  selection.addRange(range);
-
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
-  // 模拟 Delete 键
-  editor.dispatchEvent(
-    new KeyboardEvent("keydown", {
-      bubbles: true,
-      cancelable: true,
-      key: "Delete",
-      code: "Delete",
-      keyCode: 46,
-    })
-  );
-
-  editor.dispatchEvent(
-    new InputEvent("input", {
-      bubbles: true,
-      inputType: "deleteContentBackward",
-    })
-  );
-
-  return true;
-}
-
-// ====== 文本替换和发送 ======
-async function replaceAndSend(text) {
-  const editor = getLexicalEditor();
-  if (!editor) return;
-
-  await clearOriginalText();
-
-  await navigator.clipboard.writeText(text);
-
-  editor.focus();
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
-  // 模拟 Ctrl+V
-  editor.dispatchEvent(
-    new KeyboardEvent("keydown", {
-      bubbles: true,
-      cancelable: true,
-      ctrlKey: true,
-      key: "v",
-      code: "KeyV",
-    })
-  );
-
-  const pasteEvent = new ClipboardEvent("paste", {
-    bubbles: true,
-    cancelable: true,
-    clipboardData: new DataTransfer(),
-  });
-
-  Object.defineProperty(pasteEvent, "clipboardData", {
-    value: {
-      getData: () => text,
-      types: ["text/plain"],
-    },
-  });
-
-  editor.dispatchEvent(pasteEvent);
-
-  setTimeout(() => {
-    state.bypassIntercept = true;
-
-    const sendBtn = document.querySelector(
-      "button[aria-label='发送'], button[aria-label='Send'], button[title='Send'], button[data-testid='send']"
-    );
-
-    if (sendBtn) {
-      sendBtn.click();
-    } else {
-      editor.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          bubbles: true,
-          cancelable: true,
-          key: "Enter",
-          code: "Enter",
-        })
-      );
-    }
-
-    setTimeout(() => {
-      state.bypassIntercept = false;
-    }, 100);
-  }, 200);
-}
-
-// ====== 翻译接口 ======
-async function translateText(text) {
-  try {
-    const config = getConfig();
-    const response = await window.electronAPI.translateText(
-      text,
-      config.channel,
-      config.sourceLanguage
-    );
-    return response?.success ? response.translatedText : text;
-  } catch (error) {
-    console.error("翻译错误:", error);
-    return text;
-  }
-}
-
-// ====== 获取编辑器位置信息 ======
-function getEditorPosition() {
-  const editor = getLexicalEditor();
-  if (!editor) return { bottom: 100, left: "50%" };
-
-  const rect = editor.getBoundingClientRect();
-  return {
-    bottom: window.innerHeight - rect.top + 10,
-    left: rect.left + rect.width / 2,
-    width: Math.min(400, rect.width),
-  };
-}
-
-// ====== 翻译预览弹窗 ======
-function showTranslatePreview(rawText) {
-  if (state.pendingPreview) closePreview();
-
-  const config = getConfig();
-  const pos = getEditorPosition();
-
-  const preview = document.createElement("div");
-  preview.style.cssText = `
-    position: fixed;
-    bottom: ${pos.bottom}px;
-    left: ${pos.left}px;
-    transform: translateX(-50%);
-    background: #ffffff;
-    border: 1px solid #e1e5e9;
-    border-radius: 8px;
-    padding: 16px;
-    z-index: 10000;
-    width: ${pos.width}px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    line-height: 1.4;
-  `;
-
-  preview.innerHTML = `
-    <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #ffffff; z-index: 1;"></div>
-    <div style="position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 9px solid #e1e5e9; z-index: 0;"></div>
-    <div style="margin-bottom: 12px;">
-      <div style="color: #65676b; font-size: 12px; margin-bottom: 4px;">原文</div>
-      <div style="padding: 8px; background: #f7f8fa; border-radius: 6px; color: #1c1e21;">${escapeHtml(
-        rawText
-      )}</div>
-    </div>
-    <div style="margin-bottom: 16px;">
-      <div style="color: #65676b; font-size: 12px; margin-bottom: 4px;">翻译预览</div>
-      <div id="pv_status" style="color: #1877f2; font-size: 12px; margin-bottom: 4px;">${
-        config.loadingText
-      }</div>
-      <div id="pv_trans" contenteditable="false" style="padding: 8px; border: 1px solid #dddfe2; border-radius: 6px; min-height: 36px; outline: none; color: #1c1e21; cursor: pointer;" placeholder="翻译结果"></div>
-    </div>
-    <div style="display: flex; gap: 8px; justify-content: flex-end;">
-      <button id="pv_cancel" style="padding: 6px 12px; border: 1px solid #dddfe2; border-radius: 6px; background: #ffffff; color: #1c1e21; cursor: pointer; font-size: 13px;">取消</button>
-      <button id="pv_retry" style="padding: 6px 12px; border: 1px solid #1877f2; border-radius: 6px; background: #ffffff; color: #1877f2; cursor: pointer; font-size: 13px;">重试</button>
-      <button id="pv_confirm" style="padding: 6px 12px; border: none; border-radius: 6px; background: #1877f2; color: #ffffff; cursor: pointer; font-size: 13px; font-weight: 500;">发送</button>
-    </div>
-  `;
-
-  document.body.appendChild(preview);
-
-  const obj = {
-    raw: rawText,
-    node: preview,
-    translated: null,
-    userEdited: false,
-    editingTransText: false,
-  };
-  state.pendingPreview = obj;
-
-  const elStatus = preview.querySelector("#pv_status");
-  const elTrans = preview.querySelector("#pv_trans");
-  const elConfirm = preview.querySelector("#pv_confirm");
-  const elRetry = preview.querySelector("#pv_retry");
-  const elCancel = preview.querySelector("#pv_cancel");
-
-  elConfirm.onclick = () => {
-    const finalText = elTrans.innerText.trim() || obj.translated || rawText;
-    replaceAndSend(finalText);
-    closePreview();
-  };
-
-  elRetry.onclick = async () => {
-    elStatus.textContent = "重新翻译中...";
-    elStatus.style.color = "#1877f2";
-    try {
-      const newTranslation = await translateText(rawText);
-      obj.translated = newTranslation;
-      elTrans.textContent = newTranslation;
-      obj.userEdited = false;
-      elStatus.textContent = "";
-    } catch (err) {
-      elStatus.textContent = "翻译失败";
-      elStatus.style.color = "#e41e3f";
-    }
-  };
-
-  elCancel.onclick = () => closePreview();
-
-  elTrans.addEventListener("click", () => {
-    if (elTrans.getAttribute("contenteditable") === "false") {
-      elTrans.setAttribute("contenteditable", "true");
-      elTrans.style.border = "2px solid #1877f2";
-      obj.editingTransText = true;
-      elTrans.focus();
-      const range = document.createRange();
-      range.selectNodeContents(elTrans);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-  });
-
-  elTrans.addEventListener("input", () => (obj.userEdited = true));
-
-  elTrans.addEventListener("blur", () => {
-    elTrans.style.border = "1px solid #dddfe2";
-    obj.editingTransText = false;
-  });
-
-  elTrans.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        elConfirm.click();
-      } else if (!obj.editingTransText) {
-        e.preventDefault();
-        elConfirm.click();
-      }
-    }
-  });
-
-  const globalKeyHandler = (e) => {
-    if (state.pendingPreview === obj) {
-      if (e.key === "Enter" && !obj.editingTransText) {
-        e.preventDefault();
-        e.stopPropagation();
-        elConfirm.click();
-      } else if (e.key === "Escape") {
-        closePreview();
-      }
-    }
-  };
-
-  document.addEventListener("keydown", globalKeyHandler, true);
-  obj.globalKeyHandler = globalKeyHandler;
-
-  translateText(rawText)
-    .then((translation) => {
-      if (state.pendingPreview === obj) {
-        obj.translated = translation;
-        if (!obj.userEdited) {
-          elTrans.textContent = translation;
-        }
-        elStatus.textContent = "";
-      }
-    })
-    .catch((err) => {
-      if (state.pendingPreview === obj) {
-        elStatus.textContent = "翻译失败";
-        elStatus.style.color = "#e41e3f";
-      }
-    });
-}
-
-function closePreview() {
-  if (!state.pendingPreview) return;
-
-  if (state.pendingPreview.globalKeyHandler) {
-    document.removeEventListener(
-      "keydown",
-      state.pendingPreview.globalKeyHandler,
-      true
-    );
-  }
-
-  try {
-    state.pendingPreview.node.remove();
-  } catch (e) {}
-  state.pendingPreview = null;
-}
-
-function escapeHtml(text) {
-  return text.replace(/[&<>"']/g, (char) => {
-    const map = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    };
-    return map[char];
-  });
-}
-
-// ====== 拦截发送 ======
-function interceptSendAction() {
-  const editor = getLexicalEditor();
-  if (!editor) return;
-
-  const rawText = editor.innerText.trim();
-  if (!rawText) return;
-
-  const config = getConfig();
-
-  // 当autoTranslateSend为假时，不做任何操作
-  if (!config.autoTranslateSend) {
-    return;
-  }
-
-  if (state.pendingPreview) {
-    const finalText =
-      state.pendingPreview.node.querySelector("#pv_trans").innerText.trim() ||
-      state.pendingPreview.translated ||
-      rawText;
-    replaceAndSend(finalText);
-    closePreview();
-    return;
-  }
-
-  // 当autoTranslateSend为真，preview为真时，启动翻译预览
-  if (config.preview) {
-    showTranslatePreview(rawText);
-  } else {
-    // 当autoTranslateSend为真，preview为假时，直接发送翻译的内容
-    translateText(rawText)
-      .then((translatedText) => {
-        replaceAndSend(translatedText);
-      })
-      .catch((err) => {
-        console.error("翻译失败，发送原文:", err);
-        replaceAndSend(rawText);
+    const getAll = (storeName) => {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readonly");
+        const store = tx.objectStore(storeName);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
       });
-  }
-}
+    };
 
-// ====== 事件绑定 ======
-function attachToEditor(el) {
-  if (!el || el._boundByScript) return;
-  el._boundByScript = true;
+    (async () => {
+      const users = await getAll("users");
+      const chats = await getAll("chats");
 
-  el.addEventListener(
-    "keydown",
-    (e) => {
-      if (e.key === "Enter" && !e.shiftKey && !state.bypassIntercept) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        interceptSendAction();
-      }
-    },
-    true
-  );
-}
+      const allContactsMap = new Map();
 
-function bindSendButton() {
-  function tryBind() {
-    const sendBtn = document.querySelector(
-      "button[aria-label='发送'], button[aria-label='Send'], button[title='Send'], button[data-testid='send']"
-    );
-    if (sendBtn && !sendBtn._boundByScript) {
-      sendBtn._boundByScript = true;
-      sendBtn.addEventListener(
-        "click",
-        (e) => {
-          if (!state.bypassIntercept) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            interceptSendAction();
+      const userList = users.map((user) => {
+        const contact = {
+          peerId: String(user.id),
+          type: "private",
+          name: [user.first_name, user.last_name].filter(Boolean).join(" "),
+          username: user.username || null,
+          phone: user.phone || null,
+          lastMessage: "", // IndexedDB 中没有此数据，保留空
+          time: "",
+          unreadCount: "0",
+          raw: user,
+        };
+        allContactsMap.set(contact.peerId, contact);
+        return contact;
+      });
+
+      const chatList = chats.map((chat) => {
+        const peerId = String(-Math.abs(chat.id)); // 群组/频道 id 统一为负数
+        const contact = {
+          peerId,
+          type: "group",
+          name: chat.title || "",
+          username: chat.username || null,
+          phone: null,
+          lastMessage: "",
+          time: "",
+          unreadCount: "0",
+          raw: chat,
+        };
+        allContactsMap.set(peerId, contact);
+        return contact;
+      });
+
+      console.log("[TG IndexedDB 提取完成]", allContactsMap.size, "条记录");
+
+      const openChatByNickname = async (nickname, exact = false) => {
+        const matcher = exact
+          ? (c) => c.name === nickname
+          : (c) => c.name.includes(nickname);
+
+        const contact = Array.from(allContactsMap.values()).find(matcher);
+        if (!contact) {
+          console.warn("[未找到]", nickname);
+          return false;
+        }
+        const waitForElement = (selector, timeout = 10000) => {
+          return new Promise((resolve, reject) => {
+            const interval = 100;
+            let waited = 0;
+            const timer = setInterval(() => {
+              const el = document.querySelector(selector);
+              if (el) {
+                clearInterval(timer);
+                resolve(el);
+              } else if (waited >= timeout) {
+                clearInterval(timer);
+                reject(new Error("等待元素超时: " + selector));
+              }
+              waited += interval;
+            }, interval);
+          });
+        };
+
+        function simulateClick(el) {
+          const eventOptions = {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+          };
+          el.dispatchEvent(new MouseEvent("mousedown", eventOptions));
+          el.dispatchEvent(new MouseEvent("mouseup", eventOptions));
+          el.dispatchEvent(new MouseEvent("click", eventOptions));
+        }
+        const scrollChatToBottom = async (maxTries = 10, delay = 400) => {
+          try {
+            const waitForElement = (selector, timeout = 10000) => {
+              return new Promise((resolve, reject) => {
+                const interval = 100;
+                let waited = 0;
+                const timer = setInterval(() => {
+                  const el = document.querySelector(selector);
+                  if (el) {
+                    clearInterval(timer);
+                    resolve(el);
+                  } else if (waited >= timeout) {
+                    clearInterval(timer);
+                    reject(new Error("等待元素超时: " + selector));
+                  }
+                  waited += interval;
+                }, interval);
+              });
+            };
+
+            const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+            const bubble = await waitForElement(
+              "div.bubbles.has-groups.has-sticky-dates"
+            );
+
+            let tries = 0;
+            while (tries < maxTries) {
+              if (bubble.classList.contains("scrolled-down")) {
+                console.log("[已滚动到底部]");
+                break;
+              }
+
+              // 尝试点击“滚动到底部”按钮
+              const goDownButton = document.querySelector(
+                "button.bubbles-go-down.btn-corner"
+              );
+              if (goDownButton) {
+                simulateClick(goDownButton);
+                console.log("[点击] bubbles-go-down 成功");
+              } else {
+                console.warn("[未找到] bubbles-go-down 按钮");
+              }
+
+              await sleep(delay);
+              tries++;
+            }
+
+            if (!bubble.classList.contains("scrolled-down")) {
+              console.warn("[警告] 多次尝试后仍未滚动到底部");
+            }
+          } catch (err) {
+            console.error("[错误] 滚动失败:", err);
           }
-        },
-        true
-      );
-    }
-  }
-  tryBind();
-  new MutationObserver(tryBind).observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
-}
+        };
+        const el = document.querySelector(
+          'a[data-peer-id="' + contact.peerId + '"]'
+        );
+        if (el) {
+          simulateClick(el);
+          setTimeout(() => {
+            scrollChatToBottom();
+          }, 1000);
+          return true;
+        } else {
+          // 获取当前账户编号用于跳转
+          const urlParams = new URLSearchParams(window.location.search);
+          const accountNum = urlParams.get("account") || "1";
 
-function ensureBindings() {
-  const el = getLexicalEditor();
-  if (el) attachToEditor(el);
+          // 设置跳转地址
+          const jumpUrl =
+            "https://web.telegram.org/k/?account=" +
+            accountNum +
+            "#" +
+            contact.peerId;
+          console.log("[未加载 DOM 元素，跳转至页面]", jumpUrl);
+          window.location.href = jumpUrl;
+          setTimeout(() => {
+            scrollChatToBottom();
+          }, 1000);
+          return true;
+        }
+      };
 
-  new MutationObserver(() => {
-    const ed = getLexicalEditor();
-    if (ed) attachToEditor(ed);
-  }).observe(document.body, { childList: true, subtree: true });
-}
+      window.TelegramContacts = {
+        getAll: () => Array.from(allContactsMap.values()),
+        openChatByNickname,
+        loadAllContacts: async () => {}, // 不再需要滚动加载
+        getStats: () => ({
+          total: allContactsMap.size,
+          groups: Array.from(allContactsMap.values()).filter(
+            (c) => c.type === "group"
+          ).length,
+          private: Array.from(allContactsMap.values()).filter(
+            (c) => c.type === "private"
+          ).length,
+        }),
+      };
 
-// ====== 监听 Electron 主程序发来的文本直接发送 ======
-function setupElectronListeners() {
-  // 监听直接发送文本
-  if (
-    window.electronAPI &&
-    typeof window.electronAPI.onSendText === "function"
-  ) {
-    window.electronAPI.onSendText((text) => {
-      replaceAndSend(text);
-    });
-  }
-}
+      const stats = window.TelegramContacts.getStats();
+      console.log("[加载完成]", stats);
+    })();
+  };
 
-// ====== 检查Electron API并初始化 ======
-function checkElectronAPIAndInit() {
-  if (window.electronAPI) {
-    setupElectronListeners();
-    init();
-  } else {
-    setTimeout(checkElectronAPIAndInit, 500);
-  }
-}
-
-// ====== 初始化 ======
-function init() {
-  ensureBindings();
-  bindSendButton();
-
-  document.addEventListener("click", (e) => {
-    if (state.pendingPreview && !state.pendingPreview.node.contains(e.target)) {
-      closePreview();
-    }
-  });
-
-  console.log("翻译拦截脚本已初始化");
-}
-
-// ====== 启动 ======
-document.addEventListener("DOMContentLoaded", checkElectronAPIAndInit);
-if (document.readyState === "complete") {
-  checkElectronAPIAndInit();
-}
-
-// ====== 直接运行初始化 ======
-(function () {
-  checkElectronAPIAndInit();
+  openReq.onerror = function () {
+    console.error("无法打开数据库:", dbName);
+  };
 })();

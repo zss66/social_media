@@ -35,8 +35,6 @@ export const messengerTranslateScript = `
   \`;
 
   const CACHE_KEY = 'messengerTranslationCache';
-  const MAX_CACHE_SIZE = 500;
-  const CACHE_EXPIRE_MS = 30 * 24 * 60 * 60 * 1000;
 
   function hashText(text) {
     let hash = 0;
@@ -61,25 +59,59 @@ export const messengerTranslateScript = `
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
   }
 
+  function getConfig() {
+    return {
+      targetLanguage: window.pluginConfig?.translation?.targetLanguage || localStorage.getItem('facebookTranslationLanguage') || 'zh-CN',
+      buttonText: window.pluginConfig?.translation?.buttonText || '🌐 翻译',
+      channel: window.pluginConfig?.translation.channel || 'google',
+      autoTranslateReceive: window.pluginConfig?.translation?.autoTranslateReceive || false,
+      loadingText: window.pluginConfig?.translation?.loadingText || '翻译中...',
+      maxCacheSize: window.pluginConfig?.translation?.maxCacheSize || 500,
+      cacheExpireMs: window.pluginConfig?.translation?.cacheExpireMs || (30 * 24 * 60 * 60 * 1000),
+      hideButtonAfterTranslate: window.pluginConfig?.translation?.hideButtonAfterTranslate !== undefined 
+        ? window.pluginConfig.translation.hideButtonAfterTranslate 
+        : true,
+      deleteCache: window.pluginConfig?.translation?.deleteCache || false,
+    };
+  }
+
+  // ✅ 修复1：正确语法 + 闭合大括号
   function cleanCache(cache) {
+    const config = getConfig();
     const now = Date.now();
     for (const key in cache) {
-      if (!cache[key].time || now - cache[key].time > CACHE_EXPIRE_MS) {
+      if (config.cacheExpireMs !== 0 && (!cache[key].time || now - cache[key].time > config.cacheExpireMs)) {
         delete cache[key];
       }
     }
   }
 
+  // ✅ 修复2：完整闭合函数
+  function deleteCache() {
+    const config = getConfig();
+    if (config.deleteCache) {
+      localStorage.removeItem(CACHE_KEY);
+      translationCache = {};
+      console.log('🗑️ Messenger翻译缓存已清除，共释放', Object.keys(translationCache).length, '条记录');
+      // 刷新所有按钮显示
+      document.querySelectorAll('.mg-translate-btn').forEach(btn => {
+        btn.style.display = 'inline-block';
+      });
+    }
+  }  // ✅ 添加缺失的 }
+
   function limitCacheSize(cache) {
+    const config = getConfig();
     const keys = Object.keys(cache);
-    if (keys.length <= MAX_CACHE_SIZE) return;
+    if (keys.length <= config.maxCacheSize) return;
     keys.sort((a, b) => cache[a].time - cache[b].time);
-    const over = keys.length - MAX_CACHE_SIZE;
+    const over = keys.length - config.maxCacheSize;
     for (let i = 0; i < over; i++) {
       delete cache[keys[i]];
     }
   }
 
+  // ✅ 修复3：缓存初始化移到此处
   let translationCache = loadCache();
   cleanCache(translationCache);
   limitCacheSize(translationCache);
@@ -109,16 +141,6 @@ export const messengerTranslateScript = `
     return text.trim();
   }
 
-  function getConfig() {
-    return {
-      targetLanguage: window.pluginConfig?.translation?.targetLanguage || localStorage.getItem('messengerTranslationLanguage') || 'zh-CN',
-      buttonText: window.pluginConfig?.translation?.buttonText || '🌐 翻译',
-      channel: window.pluginConfig?.translation.channel || 'google',
-      autoTranslateReceive: window.pluginConfig?.translation?.autoTranslateReceive || false,
-      loadingText: window.pluginConfig?.translation?.loadingText || '翻译中...'
-    };
-  }
-
   function createTranslateButton(wrapper) {
     if (!wrapper) return;
     if (wrapper.parentElement.querySelector('.mg-translator-container')) return;
@@ -143,7 +165,9 @@ export const messengerTranslateScript = `
     if (translationCache[msgId]) {
       resultDiv.textContent = translationCache[msgId].text;
       resultDiv.style.display = 'block';
-      btn.style.display = 'none';
+      if (config.hideButtonAfterTranslate) {
+        btn.style.display = 'none';
+      }
     }
 
     btn.onclick = async () => {
@@ -164,7 +188,10 @@ export const messengerTranslateScript = `
           cleanCache(translationCache);
           limitCacheSize(translationCache);
           saveCache(translationCache);
-          btn.style.display = 'none';
+          
+          if (currentConfig.hideButtonAfterTranslate) {
+            btn.style.display = 'none';
+          }
         }
       } catch (error) {
         resultDiv.textContent = '翻译出错';
@@ -192,7 +219,6 @@ export const messengerTranslateScript = `
 
     wrapper.parentElement.appendChild(container);
 
-    // 新增自动翻译逻辑：如果启用自动翻译且无缓存，则自动触发翻译
     if (config.autoTranslateReceive && !translationCache[msgId]) {
       btn.click();
     }
@@ -220,6 +246,30 @@ export const messengerTranslateScript = `
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // ✅ 新增：实时配置监听（5行代码解决！）
+    const configObserver = new MutationObserver(() => {
+      const config = getConfig();
+      if (config.deleteCache) {
+        deleteCache();
+        console.log('🔥 Messenger配置更新：缓存已实时清除！');
+      }
+    });
+    
+    configObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-plugin-config'],
+      subtree: true
+    });
+
+    // ✅ 新增：定时检查（万无一失）
+    setInterval(() => {
+      const config = getConfig();
+      if (config.deleteCache && localStorage.getItem(CACHE_KEY)) {
+        deleteCache();
+        console.log('⏰ Messenger定时检查：缓存已清除');
+      }
+    }, 30000);
   }
 
   function checkElectronAPI() {

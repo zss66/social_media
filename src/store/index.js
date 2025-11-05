@@ -3,6 +3,7 @@ import containers from "./modules/containers";
 import settings from "./modules/settings";
 import platforms from "./modules/platforms";
 import notifications from "./modules/notifications";
+import knowledge from "./modules/knowledge";
 
 const store = createStore({
   state: {
@@ -70,7 +71,8 @@ const store = createStore({
         await dispatch("settings/loadSettings");
         await dispatch("containers/loadContainers");
         await dispatch("platforms/loadPlatforms");
-        // 动态获取 LINE 扩展 URL
+        await dispatch("knowledge/loadProviders");
+        
         // 应用保存的主题设置
         const savedTheme = localStorage.getItem("app-theme") || "light";
         commit("SET_THEME", savedTheme);
@@ -112,6 +114,7 @@ const store = createStore({
     settings,
     platforms,
     notifications,
+    knowledge,
   },
 
   // 开发工具
