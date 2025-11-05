@@ -1,11 +1,12 @@
 /*
- * @Author: zss66 zjb520zll@gmail.com
+ * @Author: zss zjb520zll@gmail.com
  * @Date: 2025-07-22 10:57:07
- * @LastEditors: zss66 zjb520zll@gmail.com
- * @LastEditTime: 2025-07-22 16:55:59
- * @FilePath: \social_media\src\main.js
+ * @LastEditors: zss zjb520zll@gmail.com
+ * @LastEditTime: 2025-09-18 16:10:10
+ * @FilePath: /social_media/src/main.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
+
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
@@ -16,7 +17,8 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import { ElLoadingDirective } from 'element-plus';
+// 移除: import { ElLoadingDirective } from 'element-plus';  // 多余导入
+
 // 自定义样式
 import './styles/index.css'
 
@@ -28,7 +30,8 @@ import { setupPlatformDetection } from './utils/platform'
 // 创建Vue应用实例
 const app = createApp(App)
 
-app.directive('loading', ElLoadingDirective); 
+// 移除: app.directive('loading', ElLoadingDirective);  // 重复注册
+
 // 注册Element Plus图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
@@ -53,21 +56,7 @@ setupPlatformDetection()
 // 全局属性
 app.config.globalProperties.$ELEMENT_SIZE = 'default'
 
-// 全局指令
-app.directive('loading', {
-  mounted(el, binding) {
-    if (binding.value) {
-      el.classList.add('loading')
-    }
-  },
-  updated(el, binding) {
-    if (binding.value) {
-      el.classList.add('loading')
-    } else {
-      el.classList.remove('loading')
-    }
-  }
-})
+// 移除: 整个自定义 app.directive('loading', { ... }) 块  // 自定义重复注册
 
 // 开发环境配置
 if (process.env.NODE_ENV === 'development') {

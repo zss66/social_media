@@ -12,7 +12,7 @@ function errorHandler(clientSocket, proxySocket) {
         clientSocket.end("Proxy socket error: " + err.message);
         clientSocket.destroy();
         proxySocket?.destroy();
-        console.error("Socks Proxy Socket Error: ", err.message);
+        
     };
 }
 

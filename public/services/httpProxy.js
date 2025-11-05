@@ -1,5 +1,6 @@
 const { createServer } = require("node:http");
 const net = require("node:net");
+const tls = require("node:tls");
 const { URL } = require("node:url");
 
 class ProxyServer {
@@ -10,20 +11,33 @@ class ProxyServer {
     }
 
     parseProxyRules() {
+        // 支持 http:// 和 https:// 协议
         const proxyRulesList = this.proxyRules.match(
-            /http:\/\/(.*):(.*?)@(.*):(\d+)/
+            /https?:\/\/(.*):(.*?)@(.*):(\d+)/
         ) || this.proxyRules.match(
-            /http:\/\/([^:@]*)(?::([^@]*))?@(.*):(\d+)/
+            /https?:\/\/([^:@]*)(?::([^@]*))?@(.*):(\d+)/
         );
 
-        if (!proxyRulesList) throw new Error("Invalid proxy rules format");
+        if (!proxyRulesList) {
+            console.error('代理规则格式错误:', this.proxyRules);
+            console.log('支持的格式:');
+            console.log('  http://username:password@proxy.example.com:8080');
+            console.log('  https://username:password@proxy.example.com:8080');
+            console.log('  http://username@proxy.example.com:8080 (无密码)');
+            throw new Error("Invalid proxy rules format");
+        }
 
-        const [, userId, password, host, port] = proxyRulesList;
+        const [fullMatch, userId, password, host, port] = proxyRulesList;
+        const isHttps = fullMatch.startsWith('https://');
+        
         this.proxyConfig = {
             host,
             port: Number(port),
-            authHeader: userId ? `Basic ${Buffer.from(`${userId}:${password}`).toString('base64')}` : null
+            isHttps, // 记录代理服务器是否使用HTTPS
+            authHeader: userId ? `Basic ${Buffer.from(`${userId}:${password || ''}`).toString('base64')}` : null
         };
+        
+        console.log(`代理配置解析成功: ${isHttps ? 'HTTPS' : 'HTTP'} ${host}:${port}`);
     }
 
     async start() {
@@ -36,8 +50,10 @@ class ProxyServer {
         return new Promise(resolve => {
             this.server.on('listening', () => {
                 this.port = this.server.address().port;
+                console.log(`代理服务器启动，支持 HTTP/HTTPS，端口: ${this.port}`);
                 resolve({
                     url: `http://127.0.0.1:${this.port}`,
+                    port: this.port,
                     close: this.close.bind(this)
                 });
             });
@@ -48,6 +64,8 @@ class ProxyServer {
         try {
             const url = this.getRequestUrl(req);
             const target = new URL(url);
+            
+            console.log(`HTTP请求: ${req.method} ${url}`);
 
             const socket = await this.createProxyConnection();
 
@@ -92,10 +110,23 @@ class ProxyServer {
                 }
             });
 
-            socket.on('end', () => res.end());
-            socket.on('error', (err) => this.handleProxyError(res, err));
+            socket.on('end', () => {
+                res.end();
+                this.cleanupSocket(socket);
+            });
+            
+            socket.on('error', (err) => {
+                this.handleProxyError(res, err);
+                this.cleanupSocket(socket);
+            });
 
-            req.pipe(socket);
+            // 处理客户端请求体
+            req.on('data', chunk => socket.write(chunk));
+            req.on('end', () => socket.end());
+            req.on('error', (err) => {
+                socket.destroy();
+                this.handleRequestError(res, err);
+            });
 
         } catch (error) {
             this.handleRequestError(res, error);
@@ -105,59 +136,127 @@ class ProxyServer {
     async handleHttpsConnect(req, clientSocket, head) {
         try {
             const [targetHost, targetPort] = req.url.split(':');
-            const socket = await this.createProxyConnection();
+            const port = targetPort || '443'; // 默认HTTPS端口
+            
+            console.log(`HTTPS CONNECT: ${targetHost}:${port}`);
 
-            // 发送CONNECT请求
-            await this.sendConnectRequest(socket, targetHost, targetPort);
+            const proxySocket = await this.createProxyConnection();
 
-            clientSocket.on("error", (err) => this.handleSocketError(clientSocket, socket, err));
-            socket.on("error", (err) => this.handleSocketError(clientSocket, socket, err));
+            // 发送CONNECT请求到上游代理
+            await this.sendConnectRequest(proxySocket, targetHost, port);
 
+            // 设置错误处理
+            const cleanup = () => {
+                this.cleanupSocket(clientSocket);
+                this.cleanupSocket(proxySocket);
+            };
+
+            clientSocket.on("error", (err) => {
+                console.error("Client socket error:", err.message);
+                cleanup();
+            });
+            
+            proxySocket.on("error", (err) => {
+                console.error("Proxy socket error:", err.message);
+                cleanup();
+            });
+
+            clientSocket.on("close", cleanup);
+            proxySocket.on("close", cleanup);
+
+            // 发送200响应给客户端
             clientSocket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
-            socket.write(head);
 
-            socket.pipe(clientSocket);
-            clientSocket.pipe(socket);
+            // 如果有初始数据，转发给代理
+            if (head && head.length > 0) {
+                proxySocket.write(head);
+            }
+
+            // 建立双向数据流
+            proxySocket.pipe(clientSocket, { end: false });
+            clientSocket.pipe(proxySocket, { end: false });
+
+            console.log(`HTTPS隧道建立成功: ${targetHost}:${port}`);
 
         } catch (error) {
-            this.handleSocketError(clientSocket, null, error);
+            console.error("HTTPS CONNECT失败:", error.message);
+            try {
+                clientSocket.write("HTTP/1.1 502 Bad Gateway\r\n\r\n");
+                clientSocket.end();
+            } catch (e) {
+                // 忽略写入错误
+            }
+            this.cleanupSocket(clientSocket);
         }
     }
 
     async createProxyConnection() {
-        const socket = net.createConnection({
-            host: this.proxyConfig.host,
-            port: this.proxyConfig.port
+        return new Promise((resolve, reject) => {
+            let socket;
+            
+            if (this.proxyConfig.isHttps) {
+                // 如果代理服务器使用HTTPS，使用TLS连接
+                socket = tls.connect({
+                    host: this.proxyConfig.host,
+                    port: this.proxyConfig.port,
+                    rejectUnauthorized: false // 在生产环境中可能需要设置为true
+                });
+            } else {
+                // 普通HTTP代理连接
+                socket = net.createConnection({
+                    host: this.proxyConfig.host,
+                    port: this.proxyConfig.port
+                });
+            }
+
+            // 设置超时
+            socket.setTimeout(30000, () => {
+                socket.destroy();
+                reject(new Error('代理连接超时'));
+            });
+
+            this.activeSockets.add(socket);
+            
+            socket.once('connect', () => {
+                socket.setTimeout(0); // 清除连接超时
+                console.log(`已连接到${this.proxyConfig.isHttps ? 'HTTPS' : 'HTTP'}代理: ${this.proxyConfig.host}:${this.proxyConfig.port}`);
+                resolve(socket);
+            });
+            
+            socket.once('error', (err) => {
+                this.activeSockets.delete(socket);
+                console.error(`代理连接错误 (${this.proxyConfig.host}:${this.proxyConfig.port}):`, err.message);
+                reject(err);
+            });
+
+            socket.once('close', () => {
+                this.activeSockets.delete(socket);
+            });
         });
-
-        this.activeSockets.add(socket);
-        socket.once('close', () => this.activeSockets.delete(socket));
-
-        await new Promise((resolve, reject) => {
-            socket.once('connect', resolve);
-            socket.once('error', reject);
-        });
-
-        return socket;
     }
 
     getRequestUrl(req) {
         if (req.url.startsWith('http')) return req.url;
-        return `http://${req.headers.host}${req.url}`;
+        
+        // 确定协议
+        const protocol = req.connection.encrypted ? 'https' : 'http';
+        return `${protocol}://${req.headers.host}${req.url}`;
     }
 
     buildHeaders(req, targetUrl) {
-        const headers = {
-            ...req.headers,
-            Host: `${targetUrl.hostname}:${targetUrl.port || 80}`,
-            Connection: 'close'
-        };
-
+        const headers = { ...req.headers };
+        
+        // 设置目标主机
+        headers.Host = targetUrl.hostname + (targetUrl.port ? `:${targetUrl.port}` : '');
+        
+        // 添加代理认证
         if (this.proxyConfig.authHeader) {
             headers['Proxy-Authorization'] = this.proxyConfig.authHeader;
         }
 
+        // 清理不需要的头部
         delete headers['proxy-connection'];
+        delete headers['connection'];
 
         return Object.entries(headers)
             .map(([k, v]) => `${k}: ${v}\r\n`)
@@ -176,10 +275,13 @@ class ProxyServer {
                 responseData += data.toString();
                 if (responseData.includes('\r\n\r\n')) {
                     socket.removeListener('data', onData);
+                    const statusLine = responseData.split('\r\n')[0];
                     if (responseData.match(/^HTTP\/\d\.\d 200/)) {
+                        console.log(`CONNECT成功: ${host}:${port}`);
                         resolve();
                     } else {
-                        reject(new Error(`Proxy refused connection: ${responseData.split('\r\n')[0]}`));
+                        console.error(`CONNECT失败: ${statusLine}`);
+                        reject(new Error(`Proxy refused connection: ${statusLine}`));
                     }
                 }
             };
@@ -187,27 +289,40 @@ class ProxyServer {
             socket.on('data', onData);
             socket.once('error', reject);
             socket.write(connectRequest);
+            
+            // 设置CONNECT请求超时
+            setTimeout(() => {
+                socket.removeListener('data', onData);
+                reject(new Error('CONNECT请求超时'));
+            }, 10000);
         });
     }
 
+    cleanupSocket(socket) {
+        if (socket && !socket.destroyed) {
+            try {
+                socket.destroy();
+            } catch (e) {
+                // 忽略销毁错误
+            }
+        }
+        this.activeSockets.delete(socket);
+    }
+
     handleProxyError(res, err) {
-        console.error('Proxy connection error:', err);
-        res.writeHead(502, { "Content-Type": "text/plain" });
-        res.end("Proxy connection error");
+        console.error('代理连接错误:', err.message);
+        if (!res.headersSent) {
+            res.writeHead(502, { "Content-Type": "text/plain; charset=utf-8" });
+            res.end("代理连接错误: " + err.message);
+        }
     }
 
     handleRequestError(res, error) {
-        console.error('Proxy error:', error);
-        res.writeHead(502, { "Content-Type": "text/plain" });
-        res.end("Proxy request error: " + error.message);
-    }
-
-    handleSocketError(clientSocket, proxySocket, error) {
-        clientSocket.write("HTTP/1.1 502 Bad Gateway\r\n\r\n");
-        clientSocket.end("Proxy socket error: " + error.message);
-        clientSocket.destroy();
-        proxySocket?.destroy();
-        console.error("HTTP Proxy Socket Error: ", error.message);
+        console.error('代理请求错误:', error.message);
+        if (!res.headersSent) {
+            res.writeHead(502, { "Content-Type": "text/plain; charset=utf-8" });
+            res.end("代理请求错误: " + error.message);
+        }
     }
 
     async close() {

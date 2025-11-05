@@ -3,25 +3,29 @@
     <div class="sidebar-header">
       <h3>平台列表</h3>
     </div>
-    
+
     <div class="platform-list">
-      <div 
-        v-for="platform in platforms" 
+      <div
+        v-for="platform in platforms"
         :key="platform.id"
         class="platform-item"
       >
         <div class="platform-info">
-          <img :src="platform.icon" :alt="platform.name" class="platform-icon" />
+          <img
+            :src="platform.icon"
+            :alt="platform.name"
+            class="platform-icon"
+          />
           <span class="platform-name">{{ platform.name }}</span>
-          <el-badge 
-            :value="getContainerCount(platform.id)" 
+          <el-badge
+            :value="getContainerCount(platform.id)"
             :hidden="getContainerCount(platform.id) === 0"
             class="container-badge"
           />
         </div>
-        
+
         <div class="platform-actions">
-          <el-button 
+          <el-button
             @click="$emit('add-container', platform)"
             size="small"
             type="primary"
@@ -29,13 +33,13 @@
             circle
           />
         </div>
-        
+
         <!-- 该平台的容器列表 -->
-        <div 
-          v-if="getPlatformContainers(platform.id).length > 0" 
+        <div
+          v-if="getPlatformContainers(platform.id).length > 0"
           class="container-list"
         >
-          <div 
+          <div
             v-for="container in getPlatformContainers(platform.id)"
             :key="container.id"
             class="container-item"
@@ -49,19 +53,23 @@
                 {{ getStatusText(container.status) }}
               </div>
             </div>
-            
+
             <div class="container-actions">
               <el-dropdown @command="handleContainerAction" trigger="click">
                 <el-button size="small" :icon="MoreFilled" circle />
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item :command="{ action: 'reload', id: container.id }">
+                    <el-dropdown-item
+                      :command="{ action: 'reload', id: container.id }"
+                    >
                       重新加载
                     </el-dropdown-item>
-                    <el-dropdown-item :command="{ action: 'settings', id: container.id }">
+                    <el-dropdown-item
+                      :command="{ action: 'settings', id: container.id }"
+                    >
                       设置
                     </el-dropdown-item>
-                    <el-dropdown-item 
+                    <el-dropdown-item
                       :command="{ action: 'remove', id: container.id }"
                       divided
                     >
@@ -75,15 +83,23 @@
         </div>
       </div>
     </div>
-    
+
     <div class="sidebar-footer">
-      <el-button @click="showQuickActions = !showQuickActions" size="small" block>
+      <el-button
+        @click="showQuickActions = !showQuickActions"
+        size="small"
+        block
+      >
         快捷操作
       </el-button>
-      
+
       <div v-if="showQuickActions" class="quick-actions">
-        <el-button @click="importContainers" size="small" block>导入配置</el-button>
-        <el-button @click="exportContainers" size="small" block>导出配置</el-button>
+        <el-button @click="importContainers" size="small" block
+          >导入配置</el-button
+        >
+        <el-button @click="exportContainers" size="small" block
+          >导出配置</el-button
+        >
         <el-button @click="clearAllContainers" size="small" type="danger" block>
           清空所有
         </el-button>
@@ -93,169 +109,167 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Plus, 
-  CircleCheck, 
-  MoreFilled 
-} from '@element-plus/icons-vue'
+import { ref, computed } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { Plus, CircleCheck, MoreFilled } from "@element-plus/icons-vue";
 
 // Props
 const props = defineProps({
   platforms: {
     type: Array,
-    required: true
+    required: true,
   },
   activeContainers: {
     type: Array,
-    default: () => []
-  }
-})
+    default: () => [],
+  },
+  activeTab: {
+    type: String,
+    default: "",
+  },
+});
 
 // Emits
 const emit = defineEmits([
-  'add-container',
-  'select-container', 
-  'remove-container',
-  'reload-container',           // 新增
-  'edit-container-settings'     // 新增
-])
+  "add-container",
+  "select-container",
+  "remove-container",
+  "reload-container", // 新增
+  "edit-container-settings", // 新增
+]);
 
 // 响应式数据
-const showQuickActions = ref(false)
+const showQuickActions = ref(false);
 
 // 计算属性
 const getPlatformContainers = (platformId) => {
-  return props.activeContainers.filter(container => container.platformId === platformId)
-}
+  return props.activeContainers.filter(
+    (container) => container.platformId === platformId
+  );
+};
 
 const getContainerCount = (platformId) => {
-  return getPlatformContainers(platformId).length
-}
+  return getPlatformContainers(platformId).length;
+};
 
 const isActiveContainer = (containerId) => {
-  // 这里需要从父组件获取当前活跃的容器ID
-  return false // 临时返回false，实际应该从props或store获取
-}
+  if (props.activeTab === containerId) return true;
+  return false; // 临时返回false，实际应该从props或store获取
+};
 
 // 方法
 const getStatusText = (status) => {
   const statusMap = {
-    'created': '已创建',
-    'loading': '加载中',
-    'ready': '就绪',
-    'sleeping': '已休眠',
-    'error': '错误',
-    'disconnected': '断开连接'
-  }
-  return statusMap[status] || '未知'
-}
+    created: "已创建",
+    loading: "加载中",
+    ready: "就绪",
+    sleeping: "已休眠",
+    error: "错误",
+    disconnected: "断开连接",
+  };
+  return statusMap[status] || "未知";
+};
 
 const handleContainerAction = (command) => {
-  const { action, id } = command
-  
+  const { action, id } = command;
+
   switch (action) {
-    case 'reload':
-      handleReloadContainer(id)
-      break
-    case 'settings':
-      handleContainerSettings(id)
-      break
-    case 'remove':
-      handleRemoveContainer(id)
-      break
+    case "reload":
+      handleReloadContainer(id);
+      break;
+    case "settings":
+      handleContainerSettings(id);
+      break;
+    case "remove":
+      handleRemoveContainer(id);
+      break;
   }
-}
+};
 
 const handleReloadContainer = (containerId) => {
-  ElMessage.info('重新加载容器...')
-  emit('reload-container', containerId)
+  ElMessage.info("重新加载容器...");
+  emit("reload-container", containerId);
   // 发送重新加载事件给父组件
-}
+};
 
 const handleContainerSettings = (containerId) => {
-  ElMessage.info('打开容器设置...')
-  emit('edit-container-settings', containerId)
+  ElMessage.info("打开容器设置...");
+  emit("edit-container-settings", containerId);
 
   // 打开容器设置弹窗
-}
+};
 
 const handleRemoveContainer = async (containerId) => {
   try {
-    await ElMessageBox.confirm(
-      '确定要移除这个容器吗？',
-      '确认移除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    emit('remove-container', containerId)
+    await ElMessageBox.confirm("确定要移除这个容器吗？", "确认移除", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning",
+    });
+    emit("remove-container", containerId);
   } catch {
     // 用户取消了操作
   }
-}
+};
 
 const importContainers = () => {
   // 创建文件输入元素
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.json'
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
   input.onchange = (e) => {
-    const file = e.target.files[0]
+    const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const containers = JSON.parse(e.target.result)
+          const containers = JSON.parse(e.target.result);
           // 导入容器配置
-          ElMessage.success('配置导入成功')
+          ElMessage.success("配置导入成功");
         } catch (error) {
-          ElMessage.error('配置文件格式错误')
+          ElMessage.error("配置文件格式错误");
         }
-      }
-      reader.readAsText(file)
+      };
+      reader.readAsText(file);
     }
-  }
-  input.click()
-}
+  };
+  input.click();
+};
 
 const exportContainers = () => {
-  const data = JSON.stringify(props.activeContainers, null, 2)
-  const blob = new Blob([data], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `containers_${new Date().toISOString().split('T')[0]}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-  ElMessage.success('配置导出成功')
-}
+  const data = JSON.stringify(props.activeContainers, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `containers_${new Date().toISOString().split("T")[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  ElMessage.success("配置导出成功");
+};
 
 const clearAllContainers = async () => {
   try {
     await ElMessageBox.confirm(
-      '确定要清空所有容器吗？此操作不可撤销！',
-      '确认清空',
+      "确定要清空所有容器吗？此操作不可撤销！",
+      "确认清空",
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
       }
-    )
-    
+    );
+
     // 移除所有容器
-    props.activeContainers.forEach(container => {
-      emit('remove-container', container.id)
-    })
-    
-    ElMessage.success('所有容器已清空')
+    props.activeContainers.forEach((container) => {
+      emit("remove-container", container.id);
+    });
+
+    ElMessage.success("所有容器已清空");
   } catch {
     // 用户取消了操作
   }
-}
+};
 </script>
 
 <style scoped>
@@ -347,7 +361,7 @@ const clearAllContainers = async () => {
 }
 
 .container-item.active {
-  background: #3498db;
+  background: #487c9f;
 }
 
 .container-info {

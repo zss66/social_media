@@ -6,7 +6,7 @@ const {
   protocol,
   nativeImage,
 } = require("electron");
-const {sockProxyRules} = require("electron-session-proxy");
+const { sockProxyRules } = require("electron-session-proxy");
 const path = require("path");
 const fs = require("fs");
 const fsp = require("fs/promises");
@@ -22,10 +22,10 @@ let logInitialized = false;
 function simpleLog(level, message, ...args) {
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
-  
+
   // 强制输出到控制台
-  process.stdout.write(logMessage + '\n');
-  
+  process.stdout.write(logMessage + "\n");
+
   // 如果有额外参数，也输出
   if (args.length > 0) {
     process.stdout.write(`    Args: ${JSON.stringify(args)}\n`);
@@ -35,56 +35,57 @@ function simpleLog(level, message, ...args) {
 // 初始化日志系统
 function initializeLogging() {
   try {
-    simpleLog('info', '=== 开始初始化日志系统 ===');
-    
+    simpleLog("info", "=== 开始初始化日志系统 ===");
+
     // 获取用户数据目录
     const userDataPath = app.getPath("userData");
-    simpleLog('info', `用户数据目录: ${userDataPath}`);
-    
+    simpleLog("info", `用户数据目录: ${userDataPath}`);
+
     // 确保目录存在
     if (!fs.existsSync(userDataPath)) {
       fs.mkdirSync(userDataPath, { recursive: true });
-      simpleLog('info', '创建用户数据目录');
+      simpleLog("info", "创建用户数据目录");
     }
-    
+
     // 设置日志文件路径
     logFile = path.join(userDataPath, "main-process.log");
-    simpleLog('info', `日志文件路径: ${logFile}`);
-    
+    simpleLog("info", `日志文件路径: ${logFile}`);
+
     // 测试文件写入
     const testMessage = `[${new Date().toISOString()}] 日志系统初始化测试\n`;
     fs.writeFileSync(logFile, testMessage);
-    simpleLog('info', '日志文件写入测试成功');
-    
+    simpleLog("info", "日志文件写入测试成功");
+
     logInitialized = true;
-    simpleLog('info', '=== 日志系统初始化完成 ===');
-    
+    simpleLog("info", "=== 日志系统初始化完成 ===");
   } catch (error) {
-    simpleLog('error', '日志系统初始化失败:', error.message);
-    simpleLog('error', '错误堆栈:', error.stack);
+    simpleLog("error", "日志系统初始化失败:", error.message);
+    simpleLog("error", "错误堆栈:", error.stack);
   }
 }
 
 // 增强的日志函数
 function log(level, message, ...args) {
   const timestamp = new Date().toISOString();
-  
+
   // 构建日志消息
   let logMessage = `[${timestamp}] [MAIN-${level.toUpperCase()}] ${message}`;
   if (args.length > 0) {
-    const argsStr = args.map(arg => 
-      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-    ).join(' ');
+    const argsStr = args
+      .map((arg) =>
+        typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg)
+      )
+      .join(" ");
     logMessage += ` ${argsStr}`;
   }
-  
+
   // 输出到控制台
-  process.stdout.write(logMessage + '\n');
-  
+  process.stdout.write(logMessage + "\n");
+
   // 写入文件
   if (logInitialized && logFile) {
     try {
-      fs.appendFileSync(logFile, logMessage + '\n');
+      fs.appendFileSync(logFile, logMessage + "\n");
     } catch (error) {
       process.stdout.write(`[ERROR] 写入日志文件失败: ${error.message}\n`);
     }
@@ -96,21 +97,21 @@ function log(level, message, ...args) {
 // ===========================================
 
 // 在app ready之前进行基础日志
-simpleLog('info', '=== Electron 主进程启动 ===');
-simpleLog('info', `Node.js 版本: ${process.version}`);
-simpleLog('info', `Electron 版本: ${process.versions.electron}`);
-simpleLog('info', `平台: ${process.platform}`);
-simpleLog('info', `架构: ${process.arch}`);
+simpleLog("info", "=== Electron 主进程启动 ===");
+simpleLog("info", `Node.js 版本: ${process.version}`);
+simpleLog("info", `Electron 版本: ${process.versions.electron}`);
+simpleLog("info", `平台: ${process.platform}`);
+simpleLog("info", `架构: ${process.arch}`);
 
 // 全局异常处理
 process.on("uncaughtException", (err) => {
-  simpleLog('error', '未捕获的异常:', err.message);
-  simpleLog('error', '堆栈:', err.stack);
+  simpleLog("error", "未捕获的异常:", err.message);
+  simpleLog("error", "堆栈:", err.stack);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-  simpleLog('error', '未处理的Promise拒绝:', reason);
-  simpleLog('error', 'Promise:', promise);
+  simpleLog("error", "未处理的Promise拒绝:", reason);
+  simpleLog("error", "Promise:", promise);
 });
 
 // ===========================================
@@ -118,12 +119,12 @@ process.on("unhandledRejection", (reason, promise) => {
 // ===========================================
 
 const { notificationManager } = require("./NotificationManager");
-const translationService = require("./services/translationService.js");
+const translationService = require("../services/translationService.js");
 require("@electron/remote/main").initialize();
-const settingsManager = require("./services/settingsManager.cjs");
+const settingsManager = require("../services/settingsManager.cjs");
 
 const isDev = process.env.NODE_ENV === "development";
-simpleLog('info', `开发模式: ${isDev}`);
+simpleLog("info", `开发模式: ${isDev}`);
 
 const preloadPath = isDev
   ? path.join(__dirname, "../public/preload.js")
@@ -132,7 +133,7 @@ const linepreloadPath = isDev
   ? path.join(__dirname, "../public/fillChromeAPI.js")
   : path.join(__dirname, "fillChromeAPI.js");
 
-simpleLog('info', `预加载脚本路径: ${preloadPath}`);
+simpleLog("info", `预加载脚本路径: ${preloadPath}`);
 
 // ===========================================
 // 窗口相关
@@ -144,7 +145,7 @@ let extensionPath = "";
 
 function createLockWindow() {
   log("info", "创建锁定窗口...");
-  
+
   try {
     lockWindow = new BrowserWindow({
       width: 400,
@@ -162,7 +163,7 @@ function createLockWindow() {
       log("info", "锁定窗口已关闭");
       lockWindow = null;
     });
-    
+
     log("info", "锁定窗口创建成功");
   } catch (error) {
     log("error", "创建锁定窗口失败:", error.message);
@@ -180,7 +181,7 @@ function createWindow() {
       minHeight: 700,
       show: false,
       frame: false,
-      
+
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
@@ -194,12 +195,12 @@ function createWindow() {
         partition: "persist:my-session",
       },
     });
-    
+
     log("info", "主窗口对象创建成功");
-    
+
     require("@electron/remote/main").enable(mainWindow.webContents);
     log("info", "远程模块已启用");
-    
+
     const startUrl = isDev
       ? "http://localhost:8080"
       : `file://${path.join(__dirname, "../dist/index.html")}`;
@@ -215,10 +216,10 @@ function createWindow() {
         log("error", "主窗口URL加载失败:", error.message);
         app.quit();
       });
-    
+
     log("info", "初始化通知管理器...");
     notificationManager.initialize(mainWindow);
-    
+
     mainWindow.once("ready-to-show", () => {
       log("info", "主窗口准备显示");
       mainWindow.show();
@@ -253,9 +254,8 @@ function createWindow() {
     mainWindow.webContents.on("responsive", () => {
       log("info", "渲染进程恢复响应");
     });
-    
+
     log("info", "主窗口设置完成");
-    
   } catch (error) {
     log("error", "创建主窗口失败:", error.message);
     log("error", "错误堆栈:", error.stack);
@@ -273,22 +273,22 @@ function createWindow() {
 async function generateProxyRules(proxyConfig) {
   // 添加详细的日志来调试
   log("info", "代理配置输入:", JSON.stringify(proxyConfig, null, 2));
-  
+
   if (!proxyConfig || !proxyConfig.enabled) {
     log("info", "代理未启用或配置为空");
-    return '';
+    return "";
   }
-  
+
   const { type, host, port, username, password } = proxyConfig;
-  
+
   // 验证必要的代理参数
   if (!type || !host || !port) {
     log("error", "代理配置不完整", { type, host, port });
     throw new Error("代理配置不完整：缺少 type、host 或 port");
   }
 
-  let proxyRules = '';
-  
+  let proxyRules = "";
+
   if (type === "socks5") {
     // SOCKS5 代理处理
     if (username && password) {
@@ -302,7 +302,9 @@ async function generateProxyRules(proxyConfig) {
   } else if (type === "http" || type === "https") {
     // HTTP/HTTPS 代理处理
     if (username && password) {
-      const auth = `${encodeURIComponent(username)}:${encodeURIComponent(password)}@`;
+      const auth = `${encodeURIComponent(username)}:${encodeURIComponent(
+        password
+      )}@`;
       proxyRules = `http://${auth}${host}:${port}`;
     } else {
       proxyRules = `http://${host}:${port}`;
@@ -312,7 +314,7 @@ async function generateProxyRules(proxyConfig) {
     log("error", "不支持的代理类型:", type);
     throw new Error(`不支持的代理类型: ${type}`);
   }
-  
+
   log("info", "最终代理规则:", proxyRules);
   return proxyRules;
 }
@@ -326,30 +328,30 @@ async function generateProxyRules(proxyConfig) {
 function quickProxyTest(ses, proxyConfig = null) {
   return new Promise((resolve) => {
     log("info", "开始代理测试...");
-    
+
     const testWindow = new BrowserWindow({
       show: false,
-      webPreferences: { 
+      webPreferences: {
         session: ses,
         nodeIntegration: false,
-        contextIsolation: true
-      }
+        contextIsolation: true,
+      },
     });
 
     const timeout = setTimeout(() => {
       log("warn", "代理测试超时");
       testWindow.destroy();
-      resolve({ 
-        success: false, 
-        error: '代理测试超时（10秒）',
-        details: { proxyConfig }
+      resolve({
+        success: false,
+        error: "代理测试超时（10秒）",
+        details: { proxyConfig },
       });
     }, 10000);
 
-    testWindow.webContents.once('did-finish-load', async () => {
+    testWindow.webContents.once("did-finish-load", async () => {
       log("info", "代理测试页面加载成功");
       clearTimeout(timeout);
-      
+
       try {
         // 尝试获取IP信息来验证代理
         const result = await testWindow.webContents.executeJavaScript(`
@@ -361,57 +363,60 @@ function quickProxyTest(ses, proxyConfig = null) {
           .then(data => ({ success: true, ip: data.origin }))
           .catch(error => ({ success: false, error: error.message }))
         `);
-        
+
         log("info", "代理测试结果:", result);
         testWindow.destroy();
-        resolve({ 
-          success: result.success, 
+        resolve({
+          success: result.success,
           ip: result.ip,
           error: result.error,
-          details: { proxyConfig }
+          details: { proxyConfig },
         });
       } catch (error) {
         log("error", "执行代理测试脚本失败:", error.message);
         testWindow.destroy();
-        resolve({ 
-          success: false, 
+        resolve({
+          success: false,
           error: `脚本执行失败: ${error.message}`,
-          details: { proxyConfig }
+          details: { proxyConfig },
         });
       }
     });
 
-    testWindow.webContents.once('did-fail-load', (event, errorCode, errorDescription) => {
-      log("error", `代理测试加载失败: ${errorCode} - ${errorDescription}`);
-      clearTimeout(timeout);
-      testWindow.destroy();
-      
-      let friendlyError = errorDescription;
-      if (errorCode === -106) {
-        friendlyError = "代理服务器连接失败，请检查代理地址和端口";
-      } else if (errorCode === -109) {
-        friendlyError = "代理认证失败，请检查用户名和密码";
-      } else if (errorCode === -21) {
-        friendlyError = "网络不可达，请检查网络连接";
+    testWindow.webContents.once(
+      "did-fail-load",
+      (event, errorCode, errorDescription) => {
+        log("error", `代理测试加载失败: ${errorCode} - ${errorDescription}`);
+        clearTimeout(timeout);
+        testWindow.destroy();
+
+        let friendlyError = errorDescription;
+        if (errorCode === -106) {
+          friendlyError = "代理服务器连接失败，请检查代理地址和端口";
+        } else if (errorCode === -109) {
+          friendlyError = "代理认证失败，请检查用户名和密码";
+        } else if (errorCode === -21) {
+          friendlyError = "网络不可达，请检查网络连接";
+        }
+
+        resolve({
+          success: false,
+          error: friendlyError,
+          errorCode,
+          details: { proxyConfig },
+        });
       }
-      
-      resolve({ 
-        success: false, 
-        error: friendlyError,
-        errorCode,
-        details: { proxyConfig }
-      });
-    });
+    );
 
     // 使用更简单的测试URL
-    testWindow.loadURL('https://www.google.com').catch(err => {
+    testWindow.loadURL("https://www.google.com").catch((err) => {
       log("error", "无法加载测试URL:", err.message);
       clearTimeout(timeout);
       testWindow.destroy();
-      resolve({ 
-        success: false, 
+      resolve({
+        success: false,
         error: `无法加载测试URL: ${err.message}`,
-        details: { proxyConfig }
+        details: { proxyConfig },
       });
     });
   });
@@ -437,32 +442,38 @@ async function createContainerSession(containerId, config = {}) {
     // 代理设置
     if (config.proxy?.enabled) {
       log("info", "开始配置代理...");
-      
+
       try {
         const proxyRules = await generateProxyRules(config.proxy);
-        
+
         if (!proxyRules) {
           log("warn", "代理规则为空，跳过代理设置");
         } else {
           // 设置代理
           await ses.setProxy({
             proxyRules,
-            proxyBypassRules: '<local>', // 本地地址绕过代理
-            proxyDns: true // 通过代理解析DNS
+            proxyBypassRules: "<local>", // 本地地址绕过代理
+            proxyDns: true, // 通过代理解析DNS
           });
 
           log("info", "代理设置完成，开始验证...");
 
           // 验证代理设置
-          const resolvedProxy = await ses.resolveProxy('https://www.google.com');
+          const resolvedProxy = await ses.resolveProxy(
+            "https://www.google.com"
+          );
           log("info", `代理解析结果: ${resolvedProxy}`);
 
           // SOCKS5 代理的认证处理
-          if (config.proxy.type === "socks5" && config.proxy.username && config.proxy.password) {
+          if (
+            config.proxy.type === "socks5" &&
+            config.proxy.username &&
+            config.proxy.password
+          ) {
             // SOCKS5 认证需要特殊处理
-            ses.removeAllListeners('login');
+            ses.removeAllListeners("login");
             ses.on("login", (event, request, authInfo, callback) => {
-              if (authInfo.scheme === 'socks') {
+              if (authInfo.scheme === "socks") {
                 log("info", "处理 SOCKS5 认证");
                 event.preventDefault();
                 callback(config.proxy.username, config.proxy.password);
@@ -472,9 +483,12 @@ async function createContainerSession(containerId, config = {}) {
             });
           }
           // HTTP/HTTPS代理认证处理
-          else if ((config.proxy.type === "http" || config.proxy.type === "https") && 
-                   config.proxy.username && config.proxy.password) {
-            ses.removeAllListeners('login');
+          else if (
+            (config.proxy.type === "http" || config.proxy.type === "https") &&
+            config.proxy.username &&
+            config.proxy.password
+          ) {
+            ses.removeAllListeners("login");
             ses.on("login", (event, request, authInfo, callback) => {
               if (authInfo.isProxy) {
                 log("info", "处理 HTTP 代理认证");
@@ -486,7 +500,6 @@ async function createContainerSession(containerId, config = {}) {
             });
           }
         }
-
       } catch (proxyError) {
         log("error", "代理设置失败:", proxyError.message);
         throw proxyError;
@@ -494,18 +507,18 @@ async function createContainerSession(containerId, config = {}) {
     }
 
     // TLS/证书处理
-    ses.allowNTLMCredentialsForDomains('*');
+    ses.allowNTLMCredentialsForDomains("*");
     ses.setCertificateVerifyProc((request, callback) => {
       const { hostname, verificationResult } = request;
-      if (verificationResult !== 'net::OK') {
+      if (verificationResult !== "net::OK") {
         const trustedDomains = [
-          'telegram.org', 
-          'web.telegram.org',
-          'httpbin.org', // 测试域名
-          'google.com',
-          'www.google.com'
+          "telegram.org",
+          "web.telegram.org",
+          "httpbin.org", // 测试域名
+          "google.com",
+          "www.google.com",
         ];
-        if (trustedDomains.some(domain => hostname.includes(domain))) {
+        if (trustedDomains.some((domain) => hostname.includes(domain))) {
           log("info", `忽略信任域名的证书错误: ${hostname}`);
           callback(0); // 接受证书
           return;
@@ -521,7 +534,7 @@ async function createContainerSession(containerId, config = {}) {
     ses.webRequest.onBeforeSendHeaders((details, callback) => {
       const headers = { ...details.requestHeaders };
       if (config.fingerprint?.language) {
-        headers["Accept-Language"] = config.fingerprint.language.join(',');
+        headers["Accept-Language"] = config.fingerprint.language.join(",");
       }
       callback({ requestHeaders: headers });
     });
@@ -535,13 +548,16 @@ async function createContainerSession(containerId, config = {}) {
         // 注意：这里可以选择抛出错误还是继续
         // throw new Error(`代理测试失败: ${testResult.error}`);
       } else {
-        log("info", "代理测试成功", testResult.ip ? `IP: ${testResult.ip}` : '');
+        log(
+          "info",
+          "代理测试成功",
+          testResult.ip ? `IP: ${testResult.ip}` : ""
+        );
       }
     }
 
     log("info", `容器会话创建成功: ${partition}`);
     return ses;
-
   } catch (error) {
     log("error", `容器会话创建失败: ${error.message}`);
     log("error", "错误堆栈:", error.stack);
@@ -554,12 +570,16 @@ async function createContainerSession(containerId, config = {}) {
  * @param {string} containerId
  */
 function setupNetworkMonitoring(ses, containerId) {
-  let requestCount = 0, successCount = 0, errorCount = 0;
+  let requestCount = 0,
+    successCount = 0,
+    errorCount = 0;
 
   ses.webRequest.onBeforeRequest((details, callback) => {
     requestCount++;
     if (requestCount % 10 === 0) {
-      console.log(`容器${containerId}网络统计: 总请求=${requestCount}, 成功=${successCount}, 错误=${errorCount}`);
+      console.log(
+        `容器${containerId}网络统计: 总请求=${requestCount}, 成功=${successCount}, 错误=${errorCount}`
+      );
     }
     callback({});
   });
@@ -567,11 +587,11 @@ function setupNetworkMonitoring(ses, containerId) {
   ses.webRequest.onCompleted(() => successCount++);
   ses.webRequest.onErrorOccurred((details) => {
     errorCount++;
-    if (details.error.includes('ERR_PROXY_CONNECTION_FAILED')) {
+    if (details.error.includes("ERR_PROXY_CONNECTION_FAILED")) {
       console.error(`代理连接失败: ${details.url}`);
-    } else if (details.error.includes('ERR_TUNNEL_CONNECTION_FAILED')) {
+    } else if (details.error.includes("ERR_TUNNEL_CONNECTION_FAILED")) {
       console.error(`代理隧道失败: ${details.url}`);
-    } else if (details.error.includes('ERR_CONNECTION_TIMED_OUT')) {
+    } else if (details.error.includes("ERR_CONNECTION_TIMED_OUT")) {
       console.error(`连接超时: ${details.url}`);
     }
   });
@@ -594,9 +614,9 @@ app
   .then(async () => {
     // 在app ready后立即初始化日志系统
     initializeLogging();
-    
+
     log("info", "应用已准备就绪，开始初始化...");
-    
+
     const userDataPath = app.getPath("userData");
     log("info", `用户数据目录: ${userDataPath}`);
 
@@ -612,7 +632,7 @@ app
 
     extensionPath = path.join(__dirname, "extensions", "line-extension");
     log("info", `扩展路径设置: ${extensionPath}`);
-    
+
     // 注册插件加载IPC
     ipcMain.handle("load-plugin", async (event, config) => {
       log("info", `加载插件，平台: ${config.platformId}`);
@@ -621,12 +641,15 @@ app
         const current_session = session.fromPartition(
           `persist:container_${config.id}`
         );
-        log("info", `为LINE平台加载插件: persist:container_${config.platformId}`);
+        log(
+          "info",
+          `为LINE平台加载插件: persist:container_${config.platformId}`
+        );
 
         try {
           await current_session.clearStorageData();
           log("info", "存储数据已清除");
-          
+
           const extension = await current_session.loadExtension(extensionPath);
           log("info", `扩展加载成功: ${extension.id}`);
           return extension;
@@ -649,7 +672,7 @@ app
 
     // 设置会话
     setupSessions();
-    
+
     // 根据设置决定创建哪个窗口
     const savedSettings = settingsManager.loadSettingsFromDisk();
     if (savedSettings.security?.appLock && savedSettings.security?.password) {
@@ -667,13 +690,12 @@ app
         createWindow();
       }
     });
-    
+
     log("info", "应用初始化完成！");
-    
   })
   .catch((error) => {
-    simpleLog('error', '应用准备失败:', error.message);
-    simpleLog('error', '错误堆栈:', error.stack);
+    simpleLog("error", "应用准备失败:", error.message);
+    simpleLog("error", "错误堆栈:", error.stack);
   });
 
 app.on("window-all-closed", () => {
@@ -727,7 +749,7 @@ ipcMain.handle("get-main-log", () => {
   try {
     if (logFile && fs.existsSync(logFile)) {
       const logContent = fs.readFileSync(logFile, "utf8");
-      const lineCount = logContent.split('\n').length;
+      const lineCount = logContent.split("\n").length;
       log("info", `返回了${lineCount}行日志`);
       return { success: true, logs: logContent };
     } else {
@@ -791,36 +813,36 @@ ipcMain.handle("test-proxy", async (event, proxyConfig) => {
   try {
     log("info", "IPC: 测试代理配置");
     log("info", "代理配置:", JSON.stringify(proxyConfig, null, 2));
-    
+
     // 参数验证
-    if (!proxyConfig || typeof proxyConfig !== 'object') {
-      throw new Error('代理配置无效');
+    if (!proxyConfig || typeof proxyConfig !== "object") {
+      throw new Error("代理配置无效");
     }
-    
+
     if (!proxyConfig.type || !proxyConfig.host || !proxyConfig.port) {
-      throw new Error('代理配置不完整：需要 type、host 和 port');
+      throw new Error("代理配置不完整：需要 type、host 和 port");
     }
-    
+
     // 创建临时测试会话
     const testSession = session.fromPartition("test-proxy-" + Date.now());
-    
+
     // 生成代理规则
     const proxyRules = await generateProxyRules({
       ...proxyConfig,
-      enabled: true
+      enabled: true,
     });
-    
+
     if (!proxyRules) {
-      throw new Error('无法生成有效的代理规则');
+      throw new Error("无法生成有效的代理规则");
     }
-    
+
     // 设置代理
-    await testSession.setProxy({ 
+    await testSession.setProxy({
       proxyRules,
-      proxyBypassRules: '<local>',
-      proxyDns: true
+      proxyBypassRules: "<local>",
+      proxyDns: true,
     });
-    
+
     // 设置认证（如果需要）
     if (proxyConfig.username && proxyConfig.password) {
       testSession.on("login", (event, request, authInfo, callback) => {
@@ -828,40 +850,39 @@ ipcMain.handle("test-proxy", async (event, proxyConfig) => {
         callback(proxyConfig.username, proxyConfig.password);
       });
     }
-    
+
     // 执行测试
     const testResult = await quickProxyTest(testSession, proxyConfig);
-    
+
     // 清理测试会话
     try {
       await testSession.clearStorageData();
     } catch (cleanupError) {
       log("warn", "清理测试会话失败:", cleanupError.message);
     }
-    
+
     if (testResult.success) {
       log("info", "代理测试成功");
-      return { 
-        success: true, 
-        message: '代理连接正常',
+      return {
+        success: true,
+        message: "代理连接正常",
         actualIP: testResult.ip,
-        proxyConfig: proxyRules
+        proxyConfig: proxyRules,
       };
     } else {
       log("error", "代理测试失败:", testResult.error);
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: testResult.error,
-        suggestion: '请检查代理服务器地址、端口和认证信息是否正确'
+        suggestion: "请检查代理服务器地址、端口和认证信息是否正确",
       };
     }
-    
   } catch (error) {
     log("error", "IPC: 代理测试失败:", error.message);
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error.message,
-      suggestion: '请检查代理配置格式是否正确'
+      suggestion: "请检查代理配置格式是否正确",
     };
   }
 });
@@ -985,9 +1006,6 @@ ipcMain.handle("show-notification", (event, options) => {
   log("warn", "Notifications not supported");
   return { success: false, error: "Notifications not supported" };
 });
-
-
-
 
 ipcMain.handle("get-preload-path", () => {
   // 返回 preload.js 的绝对路径字符串
@@ -1320,16 +1338,16 @@ ipcMain.on("app-lock", () => {
     mainWindow.hide();
   }
 });
-ipcMain.handle('load-settings', () => {
-  return settingsManager.loadSettingsFromDisk()
-})
+ipcMain.handle("load-settings", () => {
+  return settingsManager.loadSettingsFromDisk();
+});
 ipcMain.handle("save-settings", async (event, settings) => {
   const success = settingsManager.saveSettingsToDisk(settings);
   return success;
 });
 
 ipcMain.handle("verify-password", async (event, inputPassword) => {
-  log('info',"[IPC] Verifying password...");
+  log("info", "[IPC] Verifying password...");
   console.log("[IPC] Verifying password...");
   try {
     const settings = settingsManager.loadSettingsFromDisk();
@@ -1342,14 +1360,12 @@ ipcMain.handle("verify-password", async (event, inputPassword) => {
     if (passwordEncrypted) {
       realPassword = settingsManager.decrypt(savedPassword);
     }
-    log("info", "Input password")
+    log("info", "Input password");
     log("info", inputPassword);
-    log("info", "Real password")
+    log("info", "Real password");
     log("info", realPassword);
-    
-    if (inputPassword === realPassword) {
-      
 
+    if (inputPassword === realPassword) {
       if (!mainWindow) {
         createWindow(); // 确保主窗口存在
       } else {

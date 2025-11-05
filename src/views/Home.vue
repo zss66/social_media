@@ -1,17 +1,18 @@
 <template>
   <div class="home-container">
     <!-- 平台侧边栏 -->
-    <PlatformSidebar 
+    <PlatformSidebar
       :platforms="platforms"
       :active-containers="activeContainers"
+      :active-tab="activeTab"
       @add-container="handleAddContainer"
       @select-container="handleSelectContainer"
       @remove-container="handleRemoveContainer"
-      @reload-container="handleReloadContainer"               
+      @reload-container="handleReloadContainer"
       @edit-container-settings="handleEditContainerSettings"
       class="sidebar"
     />
-    
+
     <!-- 主内容区 -->
     <div class="main-content">
       <!-- 欢迎界面 -->
@@ -24,22 +25,22 @@
           </div>
           <h2>欢迎使用 Multi Social Platform</h2>
           <p>在左侧选择一个社交平台开始创建容器</p>
-          
+
           <div class="quick-start">
             <h3>快速开始</h3>
             <div class="platform-grid">
-              <div 
-                v-for="platform in popularPlatforms" 
+              <div
+                v-for="platform in popularPlatforms"
                 :key="platform.id"
                 class="platform-card"
                 @click="handleAddContainer(platform)"
               >
-                <img :src="platform.icon" :alt="platform.name" />
+                <img :src="'.' + platform.icon" :alt="platform.name" />
                 <span>{{ platform.name }}</span>
               </div>
             </div>
           </div>
-          
+
           <div class="feature-highlights">
             <div class="feature-item">
               <el-icon><Lock /></el-icon>
@@ -56,39 +57,39 @@
           </div>
         </div>
       </div>
-      
+
       <!-- 容器标签页 -->
       <div v-else class="container-tabs">
-        <el-tabs 
-          v-model="activeTab" 
-          type="card" 
+        <el-tabs
+          v-model="activeTab"
+          type="card"
           closable
           @tab-remove="handleTabRemove"
           @tab-click="handleTabClick"
         >
-          <el-tab-pane 
-            v-for="container in activeContainers" 
+          <el-tab-pane
+            v-for="container in activeContainers"
             :key="container.id"
             :label="container.name"
             :name="container.id"
           >
             <template #label>
               <div class="tab-label">
-                <img 
-                  :src="container.platform.icon" 
-                  :alt="container.platform.name" 
+                <img
+                  :src="container.platform.icon"
+                  :alt="container.platform.name"
                   class="tab-icon"
                 />
                 <span>{{ container.name }}</span>
-                <div 
-                  class="status-dot" 
+                <div
+                  class="status-dot"
                   :class="container.status"
                   :title="getStatusText(container.status)"
                 ></div>
               </div>
             </template>
-            
-            <ContainerView 
+
+            <ContainerView
               :container="container"
               :isreload="isreload"
               @focus-container="handleFocusContainer"
@@ -98,22 +99,22 @@
         </el-tabs>
       </div>
     </div>
-    
+
     <!-- 容器创建弹窗 -->
-    <el-dialog 
-      v-model="showContainerConfig" 
+    <el-dialog
+      v-model="showContainerConfig"
       :title="`创建 ${selectedPlatform?.name} 容器`"
       width="800px"
       :close-on-click-modal="false"
     >
-      <ContainerConfig 
+      <ContainerConfig
         v-if="selectedPlatform"
         :platform="selectedPlatform"
         @confirm="handleConfirmContainer"
         @cancel="handlecancleContainer"
       />
     </el-dialog>
-    
+
     <!-- 统计信息面板 -->
     <div class="stats-panel" v-if="showStats">
       <div class="stats-item">
@@ -129,19 +130,22 @@
         <div class="stats-label">就绪容器</div>
       </div>
     </div>
-    
+
     <!-- 浮动操作按钮 -->
-    <div class="floating-actions"  @mousedown="onMouseDown"
-  :style="{ top: position.top + 'px', left: position.left + 'px' }">
+    <div
+      class="floating-actions"
+      @mousedown="onMouseDown"
+      :style="{ top: position.top + 'px', left: position.left + 'px' }"
+    >
       <el-tooltip content="显示统计" placement="left">
-        <el-button 
+        <el-button
           @click="showStats = !showStats"
           :icon="DataAnalysis"
           circle
           type="info"
         />
       </el-tooltip>
-      
+
       <!-- <el-tooltip content="导入配置" placement="left">
         <el-button 
           @click="importContainers"
@@ -160,7 +164,8 @@
     </div>
     <!-- 容器设置弹窗 -->
     <el-dialog v-model="showSettings" title="容器设置" width="600px">
-      <ContainerSettings 
+      <ContainerSettings
+        :showSettings="showSettings"
         :container="container"
         @save="handleSaveSettings"
         @cancel="handlecancleSettings"
@@ -170,99 +175,126 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch,onUnmounted } from 'vue'
-import { useStore } from 'vuex'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Monitor, 
-  Lock, 
-  ChatDotRound, 
+import {
+  ref,
+  reactive,
+  computed,
+  onMounted,
+  watch,
+  onUnmounted,
+  onActivated,
+  onDeactivated,
+} from "vue";
+import { useStore } from "vuex";
+import { ElMessage, ElMessageBox } from "element-plus";
+import {
+  Monitor,
+  Lock,
+  ChatDotRound,
   DataLine,
   DataAnalysis,
   Upload,
-  Download
-} from '@element-plus/icons-vue'
-import PlatformSidebar from '@/components/PlatformSidebar.vue'
-import ContainerView from '@/components/ContainerView.vue'
-import ContainerConfig from '@/components/ContainerConfig.vue'
-import ContainerSettings from '@/components/ContainerSettings.vue'
-
+  Download,
+} from "@element-plus/icons-vue";
+import PlatformSidebar from "@/components/PlatformSidebar.vue";
+import ContainerView from "@/components/ContainerView.vue";
+import ContainerConfig from "@/components/ContainerConfig.vue";
+import ContainerSettings from "@/components/ContainerSettings.vue";
 
 // 状态管理
-const store = useStore()
+const store = useStore();
 
 // 响应式数据
-const showSettings= ref(false)
-const activeTab = ref('')
-const showContainerConfig = ref(false)
-const selectedPlatform = ref(null)
-const showStats = ref(false)
-const isreload= ref(false)
+const showSettings = ref(false);
+const activeTab = ref("");
+const showContainerConfig = ref(false);
+const selectedPlatform = ref(null);
+const showStats = ref(false);
+const isreload = ref(false);
 // 计算属性
-const platforms = computed(() => store.getters['platforms/allPlatforms'])
-const activeContainers = computed(() => store.getters['containers/allContainers']||[])
-const readyContainers = computed(() => 
-  activeContainers.value.filter(c => c.status === 'ready').length
-)
+const platforms = computed(() => store.getters["platforms/allPlatforms"]);
+const activeContainers = computed(
+  () => store.getters["containers/allContainers"] || []
+);
+const readyContainers = computed(
+  () => activeContainers.value.filter((c) => c.status === "ready").length
+);
 // 计算属性
 const container = computed(() => {
-  const containerId = activeTab.value
-  return store.getters['containers/containerById'](containerId)
-})
+  const containerId = activeTab.value;
+  return store.getters["containers/containerById"](containerId);
+});
 // 热门平台（用于快速开始）
 const popularPlatforms = computed(() => {
-  const popularIds = ['whatsapp', 'telegram', 'wechat', 'discord']
-  return platforms.value.filter(p => popularIds.includes(p.id))
-})
-const props = defineProps({
-  container: {
-    type: Object,
-    required: true
-  }
-})
-// 方法
+  const popularIds = ["whatsapp", "telegram", "wechat", "discord"];
+  return platforms.value.filter((p) => popularIds.includes(p.id));
+}); // 方法
 const generateId = () => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2)
-}
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+defineOptions({
+  name: "Home",
+});
+// 🔥 新增：activated 钩子 - 组件被激活时调用（从缓存中恢复）
+onActivated(() => {
+  console.log("[Home] 组件已激活 - 从其他路由返回");
 
+  // 可选：刷新容器状态（如果需要的话）
+  // 注意：webview 不会重新加载，只是更新状态
+  // store.dispatch('containers/refreshContainerStatus')
+
+  // 可选：检查是否有需要更新的容器
+  activeContainers.value.forEach((container) => {
+    if (container.status === "loading") {
+      console.log(`检测到容器 ${container.name} 处于加载状态`);
+    }
+  });
+});
+
+// 🔥 新增：deactivated 钩子 - 组件被停用时调用（切换到其他路由）
+onDeactivated(() => {
+  console.log("[Home] 组件已停用 - 切换到其他路由");
+
+  // 可选：保存当前状态
+  // localStorage.setItem('lastActiveTab', activeTab.value)
+
+  // 注意：不要在这里销毁 webview 或重置状态
+  // keep-alive 会保持组件实例，包括所有的 webview
+});
 const getStatusText = (status) => {
   const statusMap = {
-    'created': '已创建',
-    'loading': '加载中',
-    'ready': '就绪',
-    'error': '错误',
-    'disconnected': '已断开'
-  }
-  return statusMap[status] || '未知'
-}
+    created: "已创建",
+    loading: "加载中",
+    ready: "就绪",
+    error: "错误",
+    disconnected: "已断开",
+  };
+  return statusMap[status] || "未知";
+};
 
 // 处理添加容器
 const handleAddContainer = (platform) => {
-  
-  selectedPlatform.value = platform
-  showContainerConfig.value = true
-}
-const handleReloadContainer=async (containerId) => {
-  ElMessage.info('正在重新加载容器...')
-  isreload.value = true
-  await store.dispatch('containers/reloadContainer', containerId)
-  ElMessage.success('容器已重新加载')
-
-}
-const handleEditContainerSettings=async (containerId) => { 
-   
- showSettings.value = true
- 
-}
+  selectedPlatform.value = platform;
+  showContainerConfig.value = true;
+};
+const handleReloadContainer = async (containerId) => {
+  ElMessage.info("正在重新加载容器...");
+  isreload.value = true;
+  await store.dispatch("containers/reloadContainer", containerId);
+  ElMessage.success("容器已重新加载");
+};
+const handleEditContainerSettings = async (containerId) => {
+  showSettings.value = true;
+};
 const handleUpdateContainer = (containerId, updates) => {
-  store.dispatch('containers/updateContainer', { id: containerId, updates })
-}
+  store.dispatch("containers/updateContainer", { id: containerId, updates });
+};
 const handleFocusContainer = (containerId) => {
   console.log(`[Parent] 聚焦到容器: ${containerId}`);
-  
+
   // 切换到对应的标签
   activeTab.value = containerId;
-  
+
   // 确保窗口可见和聚焦（如果需要的话）
   if (window.electronAPI?.focusWindow) {
     window.electronAPI.focusWindow();
@@ -271,23 +303,21 @@ const handleFocusContainer = (containerId) => {
 const handleSaveSettings = (settings) => {
   console.log("Saving container settings:", settings);
   if (container.value) {
-    handleUpdateContainer(container.value.id, { config: settings })
-    showSettings.value = false
-    ElMessage.success('容器设置已保存')
+    handleUpdateContainer(container.value.id, { config: settings });
+    showSettings.value = false;
+    ElMessage.success("容器设置已保存");
   }
-}
+};
 const handlecancleSettings = () => {
- 
-  showSettings.value = false
-}
+  showSettings.value = false;
+};
 const handlecancleContainer = () => {
-  showContainerConfig.value = false
-  selectedPlatform.value = null
-}
+  showContainerConfig.value = false;
+  selectedPlatform.value = null;
+};
 // 确认创建容器
 const handleConfirmContainer = async (config) => {
- 
- console.log('正在创建容器...')
+  console.log("正在创建容器...");
   try {
     const containerData = {
       id: generateId(),
@@ -296,177 +326,174 @@ const handleConfirmContainer = async (config) => {
       platform: selectedPlatform.value,
       config: config,
       url: selectedPlatform.value.url,
-      status: 'created',
+      status: "created",
       features: {
         translation: config.enableTranslation || false,
-        autoReply: config.enableAutoReply || false
+        autoReply: config.enableAutoReply || false,
       },
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-    
-    console.log('传递的容器数据', containerData)
-    await store.dispatch('containers/createContainer', containerData)
-    console.log('容器数据传递完成' )
+      updatedAt: new Date().toISOString(),
+    };
 
-    activeTab.value = containerData.id
-    showContainerConfig.value = false
-    
-    
+    console.log("传递的容器数据", containerData);
+    await store.dispatch("containers/createContainer", containerData);
+    console.log("容器数据传递完成");
+
+    activeTab.value = containerData.id;
+    handlecancleContainer();
   } catch (error) {
-    ElMessage.error(`创建容器失败: ${error.message}`)
+    ElMessage.error(`创建容器失败: ${error.message}`);
   }
-}
+};
 
 // 选择容器
 const handleSelectContainer = (containerId) => {
-  activeTab.value = containerId
-}
+  activeTab.value = containerId;
+};
 
 // 移除容器
 const handleRemoveContainer = async (containerId) => {
   try {
     await ElMessageBox.confirm(
-      '确定要删除这个容器吗？所有数据将被清除。',
-      '确认删除',
+      "确定要删除这个容器吗？所有数据将被清除。",
+      "确认删除",
       {
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-        type: 'warning'
+        confirmButtonText: "删除",
+        cancelButtonText: "取消",
+        type: "warning",
       }
-    )
-    
-    await store.dispatch('containers/removeContainer', containerId)
-    
+    );
+
+    await store.dispatch("containers/removeContainer", containerId);
+
     // 如果删除的是当前活跃标签，切换到其他标签
     if (activeTab.value === containerId) {
-      const remainingContainers = activeContainers.value.filter(c => c.id !== containerId)
-      activeTab.value = remainingContainers.length > 0 ? remainingContainers[0].id : ''
+      const remainingContainers = activeContainers.value.filter(
+        (c) => c.id !== containerId
+      );
+      activeTab.value =
+        remainingContainers.length > 0 ? remainingContainers[0].id : "";
     }
-    
-    ElMessage.success('容器已删除')
+
+    ElMessage.success("容器已删除");
   } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(`删除容器失败: ${error.message}`)
+    if (error !== "cancel") {
+      ElMessage.error(`删除容器失败: ${error.message}`);
     }
   }
-}
+};
 
 // 处理标签页移除
 const handleTabRemove = (containerId) => {
-  handleRemoveContainer(containerId)
-}
+  handleRemoveContainer(containerId);
+};
 
 // 处理标签页点击
 const handleTabClick = (tab) => {
-  const container = activeContainers.value.find(c => c.id === tab.props.name)
+  const container = activeContainers.value.find((c) => c.id === tab.props.name);
   if (container) {
     // 可以在这里添加标签页点击的逻辑
   }
-}
-
-
-
-
+};
 
 // 导入容器配置
 const importContainers = () => {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.json'
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
   input.onchange = async (e) => {
-    const file = e.target.files[0]
+    const file = e.target.files[0];
     if (file) {
       try {
-        await store.dispatch('containers/importContainers', file)
-        ElMessage.success('容器配置导入成功')
+        await store.dispatch("containers/importContainers", file);
+        ElMessage.success("容器配置导入成功");
       } catch (error) {
-        ElMessage.error(`导入失败: ${error.message}`)
+        ElMessage.error(`导入失败: ${error.message}`);
       }
     }
-  }
-  input.click()
-}
+  };
+  input.click();
+};
 
 // 导出容器配置
 const exportContainers = async () => {
   try {
-    await store.dispatch('containers/exportContainers')
-    ElMessage.success('容器配置已导出')
+    await store.dispatch("containers/exportContainers");
+    ElMessage.success("容器配置已导出");
   } catch (error) {
-    ElMessage.error(`导出失败: ${error.message}`)
+    ElMessage.error(`导出失败: ${error.message}`);
   }
-}
+};
 
-watch(activeContainers, (newContainers, oldContainers) => {
-  console.warn('activeContainers changed', newContainers, oldContainers)
-  console.warn(typeof newContainers)
-  console.warn(typeof oldContainers)
-  
-  // 处理 oldContainers 为 undefined 的情况
-  const oldArray = oldContainers || []
-  
-  if (newContainers.length > oldArray.length) {
-    const newContainer = newContainers.find(c =>
-      !oldArray.some(oc => oc.id === c.id)
-    )
-    if (newContainer) {
-      activeTab.value = newContainer.id
+watch(
+  activeContainers,
+  (newContainers, oldContainers) => {
+    // 处理 oldContainers 为 undefined 的情况
+    const oldArray = oldContainers || [];
+
+    if (newContainers.length > oldArray.length) {
+      const newContainer = newContainers.find(
+        (c) => !oldArray.some((oc) => oc.id === c.id)
+      );
+      if (newContainer) {
+        activeTab.value = newContainer.id;
+      }
     }
-  }
-}, { immediate: true })
+  },
+  { immediate: true }
+);
 
 // 组件挂载时的逻辑
 onMounted(async () => {
   // 加载平台和容器数据
-  await store.dispatch('platforms/loadPlatforms')
-  await store.dispatch('containers/loadContainers')
-  console.log('activeContainers', activeContainers.value)
-  console.log('platforms', platforms.value)
+  await store.dispatch("platforms/loadPlatforms");
+  await store.dispatch("containers/loadContainers");
+  console.log("activeContainers", activeContainers.value);
+  console.log("platforms", platforms.value);
   // 如果有容器，设置第一个为活跃状态
   if (activeContainers.value.length > 0) {
-    activeTab.value = activeContainers.value[0].id
+    activeTab.value = activeContainers.value[0].id;
   }
-  
+
   // 显示使用提示
-  const hasShownTip = localStorage.getItem('home-tip-shown')
+  const hasShownTip = localStorage.getItem("home-tip-shown");
   if (!hasShownTip && activeContainers.value.length === 0) {
     setTimeout(() => {
-      ElMessage.info('点击左侧平台图标创建您的第一个容器！')
-      localStorage.setItem('home-tip-shown', 'true')
-    }, 1000)
+      ElMessage.info("点击左侧平台图标创建您的第一个容器！");
+      localStorage.setItem("home-tip-shown", "true");
+    }, 1000);
   }
-})
-const position = reactive({ left: 200, top: 45 })
-let isDragging = false
-let offsetX = 0
-let offsetY = 0
+});
+const position = reactive({ left: 200, top: 45 });
+let isDragging = false;
+let offsetX = 0;
+let offsetY = 0;
 
 const onMouseDown = (e) => {
-  isDragging = true
-  offsetX = e.clientX - position.left
-  offsetY = e.clientY - position.top
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
-}
+  isDragging = true;
+  offsetX = e.clientX - position.left;
+  offsetY = e.clientY - position.top;
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+};
 
 const onMouseMove = (e) => {
-  if (!isDragging) return
-  position.left = e.clientX - offsetX
-  position.top = e.clientY - offsetY
-}
+  if (!isDragging) return;
+  position.left = e.clientX - offsetX;
+  position.top = e.clientY - offsetY;
+};
 
 const onMouseUp = () => {
-  isDragging = false
-  document.removeEventListener('mousemove', onMouseMove)
-  document.removeEventListener('mouseup', onMouseUp)
-}
+  isDragging = false;
+  document.removeEventListener("mousemove", onMouseMove);
+  document.removeEventListener("mouseup", onMouseUp);
+};
 
 // 防止组件卸载后监听器未移除
 onUnmounted(() => {
-  document.removeEventListener('mousemove', onMouseMove)
-  document.removeEventListener('mouseup', onMouseUp)
-})
+  document.removeEventListener("mousemove", onMouseMove);
+  document.removeEventListener("mouseup", onMouseUp);
+});
 </script>
 
 <style scoped>
@@ -664,7 +691,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -741,7 +769,7 @@ onUnmounted(() => {
   .home-container {
     flex-direction: column;
   }
-  
+
   .sidebar {
     width: 100%;
     height: auto;
@@ -749,36 +777,36 @@ onUnmounted(() => {
     border-right: none;
     border-bottom: 1px solid var(--border-color-light);
   }
-  
+
   .welcome-screen {
     padding: 20px;
   }
-  
+
   .welcome-content h2 {
     font-size: 24px;
   }
-  
+
   .platform-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .feature-highlights {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .stats-panel {
     position: static;
     margin: 16px;
     justify-content: center;
   }
-  
+
   .floating-actions {
     bottom: 16px;
     right: 16px;
     flex-direction: row;
   }
-  
+
   .floating-actions .el-button {
     width: 40px;
     height: 40px;
@@ -790,7 +818,7 @@ onUnmounted(() => {
   .platform-card {
     border: 2px solid var(--border-color-base);
   }
-  
+
   .stats-item {
     border: 2px solid var(--border-color-base);
   }
@@ -802,15 +830,15 @@ onUnmounted(() => {
   .floating-actions .el-button {
     transition: none;
   }
-  
+
   .platform-card:hover {
     transform: none;
   }
-  
+
   .status-dot.loading {
     animation: none;
   }
-  
+
   .stats-panel {
     animation: none;
   }
