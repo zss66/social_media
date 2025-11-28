@@ -1,4 +1,3 @@
-export const newWhatsAppMessage = `
 (function () {
   'use strict';
 
@@ -96,7 +95,7 @@ export const newWhatsAppMessage = `
 
             messageData.blobUrl = blobUrl;
             messageData.mimetype = media.mimetype;
-            messageData.filename = media.filename || \`media_\${Date.now()}\`;
+            messageData.filename = media.filename || `media_${Date.now()}`;
             messageData.size = media.filesize;
 
             window.whatsappMediaFiles.push({
@@ -109,7 +108,7 @@ export const newWhatsAppMessage = `
             });
 
             if (config.verboseLog) {
-              console.log(\`💾 [\${msg.type}] 媒体已解密 ✅\`);
+              console.log(`💾 [${msg.type}] 媒体已解密 ✅`);
               console.log('🔗 Blob URL:', blobUrl);
             }
 
@@ -149,7 +148,7 @@ export const newWhatsAppMessage = `
                         if(chat.name!=="未知"){
                             clickChatItem(chat.name,messageData.body);
                         }else{
-                            clickChatItem(messageData.from.replace(/\\D/g, ''),messageData.body,false);
+                            clickChatItem(messageData.from.replace(/\D/g, ''),messageData.body,false);
                         }
                     }
                 });
@@ -159,12 +158,12 @@ export const newWhatsAppMessage = `
       if (!config.silentMode) {
         const direction = msg.isFromMe ? '发送' : '接收';
         console.log(
-          \`📨 [\${direction}] \${MESSAGE_TYPES[msg.type] || msg.type}\`,
-          '\\n🕒 时间:', messageData.timestamp,
-          '\\n🆔 ID:', messageData.id,
-          '\\n💬 内容:', messageData.body || '[媒体]',
-          '\\n📎 文件名:', messageData.filename || 'N/A',
-          '\\n🔗 Blob URL:', messageData.blobUrl || '无'
+          `📨 [${direction}] ${MESSAGE_TYPES[msg.type] || msg.type}`,
+          '\n🕒 时间:', messageData.timestamp,
+          '\n🆔 ID:', messageData.id,
+          '\n💬 内容:', messageData.body || '[媒体]',
+          '\n📎 文件名:', messageData.filename || 'N/A',
+          '\n🔗 Blob URL:', messageData.blobUrl || '无'
         );
       }
 
@@ -214,7 +213,7 @@ export const newWhatsAppMessage = `
     if (!m) return console.error('❌ 索引无效');
     const a = document.createElement('a');
     a.href = m.blobUrl;
-    a.download = m.filename || \`media_\${index}\`;
+    a.download = m.filename || `media_${index}`;
     a.click();
   };
 
@@ -250,7 +249,7 @@ export const newWhatsAppMessage = `
              isName= titleElement.getAttribute("title") === title
         }
         else{
-            isName= titleElement.getAttribute("title").replace(/\\D/g, '')  === title
+            isName= titleElement.getAttribute("title").replace(/\D/g, '')  === title
         }
         if (titleElement && isName) {
           const event = new MouseEvent("mousedown", {
@@ -263,6 +262,7 @@ export const newWhatsAppMessage = `
           
           // 只有在消息为纯文本且配置了知识库时才触发
           if (
+            isTextMessage(messageBody) &&
             pluginConfig?.knowledge?.enableRetrieval &&
             pluginConfig?.knowledge?.selectedKnowledgeBase
           ) {
@@ -291,18 +291,16 @@ export const newWhatsAppMessage = `
         clearInterval(timer);
         hookMessageCollection();
         window.__WHATSAPP_MONITOR_INITIALIZED__ = true;
-        console.log(\`
+        console.log(`
 ✅ 启动成功！可用命令：
   getAllMessages()      查看所有消息
   getAllMedia()         查看媒体信息
   downloadMedia(n)      下载媒体文件
   stopWhatsAppMonitor() 停止监听
-        \`);
+        `);
       }
     }, 1000);
   }
 
   initialize();
 })();
-
-`;

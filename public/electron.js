@@ -2,7 +2,7 @@
  * @Author: zss zjb520zll@gmail.com
  * @Date: 2025-09-18 16:35:20
  * @LastEditors: zss zjb520zll@gmail.com
- * @LastEditTime: 2025-11-05 15:58:53
+ * @LastEditTime: 2025-11-26 09:26:12
  * @FilePath: /social_media/public/electron.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -24,23 +24,7 @@ const fsp = require("fs/promises");
 let logFile = null;
 let logInitialized = false;
 
-function log(level, message, ...args) {
-  const timestamp = new Date().toISOString();
-  const logMessage = `[${timestamp}] [MAIN-${level.toUpperCase()}] ${message}`;
-
-  process.stdout.write(logMessage + "\n");
-  if (args.length > 0) {
-    process.stdout.write(`    Args: ${JSON.stringify(args)}\n`);
-  }
-
-  if (logInitialized && logFile) {
-    try {
-      fs.appendFileSync(logFile, logMessage + "\n");
-    } catch (error) {
-      process.stdout.write(`[ERROR] 写入日志文件失败: ${error.message}\n`);
-    }
-  }
-}
+let logStream = null;
 
 function initializeLogging() {
   try {
@@ -49,11 +33,26 @@ function initializeLogging() {
       fs.mkdirSync(userDataPath, { recursive: true });
     }
     logFile = path.join(userDataPath, "main-process.log");
-    fs.writeFileSync(logFile, `[${new Date().toISOString()}] 日志系统初始化\n`);
-    logInitialized = true;
+    // 创建一个写入流
+    logStream = fs.createWriteStream(logFile, { flags: "a" });
     log("info", "日志系统初始化完成");
   } catch (error) {
-    process.stdout.write(`[ERROR] 日志系统初始化失败: ${error.message}\n`);
+    console.error(error);
+  }
+}
+
+function log(level, message, ...args) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] [MAIN-${level.toUpperCase()}] ${message}`;
+
+  console.log(logMessage); // 保持控制台输出
+
+  // 异步写入，不阻塞主线程
+  if (logStream && logStream.writable) {
+    logStream.write(logMessage + "\n");
+    if (args.length > 0) {
+      logStream.write(`    Args: ${JSON.stringify(args)}\n`);
+    }
   }
 }
 

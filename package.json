@@ -13,6 +13,9 @@
     "electron-dev": "concurrently \"yarn serve\" \"wait-on http://localhost:8080 && cross-env NODE_ENV=development electron .\"",
     "electron-fast": "yarn build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
     "electron-pack": "electron-builder",
+  
+    "electron:build:mac-arm64": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false  && electron-builder --mac --arm64",
+    "electron:build:mac-intel": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false  && electron-builder --mac --x64",
     "generate-icons": "electron-icon-builder --input=public/icons/app-icon.png --output=build --flatten",
     "prebuild": "yarn generate-icons",
     "preelectron-pack": "yarn build"
@@ -54,6 +57,7 @@
     "directories": {
       "output": "dist_electron"
     },
+    
     "mac": {
       "category": "public.app-category.social-networking",
       "sign": false,

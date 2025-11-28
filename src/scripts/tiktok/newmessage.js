@@ -53,15 +53,26 @@ export const newTikTokMessage = `
     const hasVoice =
       strings.some((s) => s.includes("voice")) ||
       fullText.includes("voice message");
-
+     let receiverId = null;
     // 提取发送者 ID
-    const idMatches = fullText.match(/\\+0:1:(\\d{16,}):(\\d{16,})/);
-    if (idMatches) {
-      senderId = idMatches[2];
-    } else {
-      const singleIdMatch = fullText.match(/\\d{16,}/);
-      if (singleIdMatch) senderId = singleIdMatch[0];
-    }
+    const pbMatch = fullText.match(/pb\\s*[:=]?\\s*([0-9]+):([0-9]+):(\\d{10,20}):(\\d{10,20})/);
+if (pbMatch) {
+  senderId = pbMatch[3];
+  receiverId = pbMatch[4];
+} else {
+  const legacyMatch = fullText.match(/(?:\\+0:1:|30:1:)(\\d{10,20}):(\\d{10,20})/);
+  if (legacyMatch) {
+    senderId = legacyMatch[1];
+    receiverId = legacyMatch[2];
+  }
+}
+
+// 回退匹配：仅在未匹配时尝试数字串
+if (!senderId) {
+  const idCandidates = [...fullText.matchAll(/\\d{16,}/g)].map(m => m[0]);
+  const plausible = idCandidates.filter(id => !id.startsWith("1180") && !id.startsWith("1762"));
+  if (plausible.length) senderId = plausible[0];
+}
 
     // 确定媒体类型
     if (hasVoice) {
@@ -163,10 +174,10 @@ export const newTikTokMessage = `
     }
 
     // 过滤噪声
-    if (
-      (!parsed.messageType && parsed.messageText.length < 2) ||
-      (!parsed.messageType && !parsed.mediaType)
-    ) {
+    if 
+      (!parsed.strings) 
+   {
+      console.log(parsed);
       console.log("[WS Preload] ℹ️ 过滤噪声消息:", parsed.summary);
       return;
     }
@@ -558,7 +569,8 @@ function extractUserInfo(data) {
 
     // 存储到缓存
     state.userCache.set(userInfo.userId, userInfo);
-
+    if (!window.TikTokUserCache) window.TikTokUserCache = new Map();
+    window.TikTokUserCache.set(userInfo.userId, userInfo);
     // 格式化输出
     console.group(\`👤 用户信息 #\${index + 1}\`);
     console.log("%c基础信息", "color: #00ffff; font-weight: bold;");
@@ -679,9 +691,20 @@ function getFollowerStatusText(status) {
 
   // ===== 消息处理核心 =====
   async function handleIncomingMessage(parsed) {
-    if (parsed.senderId) {
+      if (parsed.senderId) {
+    // 优先查全局缓存（由 Fetch 拦截器维护）
+    const cached =
+      window.TikTokUserCache?.get(parsed.senderId) ||
+      state.userCache.get(parsed.senderId);
+
+    if (cached) {
+      console.log(\`[User Info] 命中缓存用户 \${cached.username} (\${cached.userId})\`);
+      parsed.senderInfo = cached;
+    } else {
+      console.log(\`[User Info] 未命中缓存，主动请求 \${parsed.senderId}\`);
       parsed.senderInfo = await fetchUserInfoIfMissing(parsed.senderId);
     }
+  }
 
     const info = parsed.senderInfo;
     console.log(
@@ -713,7 +736,7 @@ function getFollowerStatusText(status) {
     console.log("%c" + "═".repeat(60), "color: #00ff00;");
 
     // 自动打开对话 + 知识库
-    if (info?.nickname && pluginConfig?.knowledge?.enableRetrieval) {
+    if (info?.nickname && pluginConfig?.knowledge?.enableRetrieval && pluginConfig?.knowledge?.selectedKnowledgeBase) {
       if (!isOnMessagesPage()) {
         navigateToMessages();
         const loaded = await waitForChatList();
@@ -725,7 +748,7 @@ function getFollowerStatusText(status) {
       }
       console.log("[TikTok Main] 自动打开对话:", info.nickname);
       // 知识库检索
-      if (!parsed.mediaType && parsed.messageText && pluginConfig?.knowledge?.selectedKnowledgeBase) {
+      if (!parsed.mediaType && parsed.messageText ) {
         const response = await window.electronAPI.sendKnowledgeBaseMessage(
           parsed.messageText,
           pluginConfig.knowledge

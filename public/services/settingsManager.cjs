@@ -2,7 +2,7 @@
  * @Author: zss zjb520zll@gmail.com
  * @Date: 2025-08-07 17:48:28
  * @LastEditors: zss zjb520zll@gmail.com
- * @LastEditTime: 2025-11-03 15:38:51
+ * @LastEditTime: 2025-11-26 09:15:44
  * @FilePath: /social_media/public/services/settingsManager.cjs
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -21,7 +21,15 @@ const isDev = process.env.NODE_ENV === "development";
 function getDefaultSettingsPath() {
   if (isDev) {
     // 开发：__dirname 是 services/，向上两级到项目根
-    return path.join(__dirname, "..", "src", "common", "default-settings.js");
+    return path.join(
+      __dirname,
+
+      "..",
+      "..",
+      "src",
+      "common",
+      "default-settings.js"
+    );
   } else {
     // 打包：复制到 asar 同级目录
     return path.join(process.resourcesPath, "default-settings.js");
