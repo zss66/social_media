@@ -7,10 +7,11 @@ async function getWhatsAppData() {
   if (!lastWidMd) {
     throw new Error("未找到 last-wid-md 字段。请确保已登录 WhatsApp Web。");
   } else {
-    const widParts = lastWidMd.match(/^(\d+):(\d+)@c\.us$/);
+    const widParts = lastWidMd.match(/^(\\d+):(\\d+)@c\\.us$/);
     currentAccount = {
       fullWid: lastWidMd,
       phoneNumber: widParts ? widParts[1] : "未知",
+      wsid: widParts ? widParts[1] + "@c.us" : "未知",
       deviceId: widParts ? widParts[2] : "未知",
       type: "@c.us 表示个人用户",
     };
@@ -151,4 +152,5 @@ async function getWhatsAppData() {
   });
 }
 getWhatsAppData().then((data) => console.log("返回数据:", data));
+window.getWhatsAppData = getWhatsAppData;
 `;
